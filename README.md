@@ -36,6 +36,16 @@ Logo files live in `assets/`: `logo.png` (full lockup), `logo-mark.png` (R4R onl
 
 ## Deploying
 
-Any static host works. For GitHub Pages: repo **Settings → Pages → Deploy from a branch**, pick `main` and `/ (root)`.
+The site is hosted on GitHub Pages at **rally4relief.com**. The `CNAME` file tells GitHub which domain to serve it on.
+
+DNS records at the domain registrar:
+
+| Type  | Name  | Value                   |
+|-------|-------|-------------------------|
+| A     | `@`   | `185.199.108.153`       |
+| A     | `@`   | `185.199.109.153`       |
+| A     | `@`   | `185.199.110.153`       |
+| A     | `@`   | `185.199.111.153`       |
+| CNAME | `www` | `mahadmyonis.github.io` |
 
 Contact: [@rally4relief](https://instagram.com/rally4relief) · rally4relief.team@gmail.com
