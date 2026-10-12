@@ -34,7 +34,7 @@
 
   // Fade sections in as they enter the viewport
   if ("IntersectionObserver" in window) {
-    var targets = document.querySelectorAll(".section .container, .hero .container");
+    var targets = document.querySelectorAll(".section .container");
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) {
         if (entry.isIntersecting) {
