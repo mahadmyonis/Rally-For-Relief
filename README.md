@@ -17,20 +17,22 @@ python3 -m http.server 8000
 - `index.html` — page content and structure
 - `styles.css` — brand styles (colours, fonts, layout)
 - `script.js` — mobile menu, header state, scroll reveal
+- `assets/` — logo, favicon and social preview image
 
 ## Design
 
-Warm paper background with pitch green and tangerine accents. Change the colours in one place: the `:root` variables at the top of `styles.css`.
+Brand colours on a mostly black page, with gold as the accent. They're defined once in the `:root` variables at the top of `styles.css`.
 
-| Token  | Hex       |
-|--------|-----------|
-| Paper  | `#F4EFE6` |
-| Ink    | `#141414` |
-| Green  | `#1E4D3A` |
-| Orange | `#FF6B2C` |
-| Sand   | `#E9D9B8` |
+| Token      | Hex       | Use                         |
+|------------|-----------|-----------------------------|
+| Black      | `#0B0B0B` | Page background             |
+| Gold       | `#D4A63A` | Accent, buttons, highlights |
+| Cream      | `#F5F2EA` | Main text                   |
+| Muted grey | `#9C9585` | Labels, small text          |
 
 Fonts (Google Fonts): **Bricolage Grotesque** for headlines, **Instrument Sans** for body text, **Instrument Serif** italic for accent words.
+
+Logo files live in `assets/`: `logo.png` (full lockup), `logo-mark.png` (R4R only), `favicon.png` and `og.png` (link preview image). The PNGs have transparent backgrounds.
 
 ## Deploying
 
