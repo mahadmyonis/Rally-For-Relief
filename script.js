@@ -24,6 +24,11 @@
     if (e.key === "Escape") closeNav();
   });
 
+  // Close the menu when tapping anywhere outside it
+  document.addEventListener("click", function (e) {
+    if (nav.classList.contains("is-open") && !nav.contains(e.target) && !toggle.contains(e.target)) closeNav();
+  });
+
   // Header border once the page scrolls
   var header = document.querySelector(".site-header");
   function onScroll() {

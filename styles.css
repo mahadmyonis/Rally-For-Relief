@@ -40,6 +40,9 @@ body {
   font-size: 18px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
   overflow-x: hidden;
 }
 
@@ -246,8 +249,8 @@ em {
   transition: transform 0.25s ease;
 }
 .nav-toggle-bar + .nav-toggle-bar { margin-top: 6px; }
-.nav-toggle[aria-expanded="true"] .nav-toggle-bar:first-of-type { transform: translateY(4px) rotate(45deg); }
-.nav-toggle[aria-expanded="true"] .nav-toggle-bar:last-of-type { transform: translateY(-4px) rotate(-45deg); }
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(2) { transform: translateY(4px) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] .nav-toggle-bar:nth-child(3) { transform: translateY(-4px) rotate(-45deg); }
 
 /* --- Hero ----------------------------------------------------------------- */
 
@@ -659,7 +662,7 @@ em {
 }
 .footer-tag em { color: var(--gold); }
 .footer-links { display: flex; flex-wrap: wrap; gap: 8px 24px; }
-.footer-links a { color: var(--grey); text-decoration: none; overflow-wrap: anywhere; }
+.footer-links a { display: inline-block; padding: 10px 0; color: var(--grey); text-decoration: none; overflow-wrap: anywhere; }
 .footer-links a:hover { color: var(--cream); text-decoration: underline; text-underline-offset: 4px; }
 .footer-copy { justify-self: end; color: var(--grey); font-size: 15px; }
 
@@ -734,7 +737,26 @@ em {
   .join-actions .btn { flex: 1 1 100%; }
   .scroll-cue, .hero-speed { display: none; }
 
-  .founder { border-radius: 24px; }
+  .founder { border-radius: 24px; padding: 16px; }
+  .avatar { width: 60px; height: 60px; font-size: 26px; }
+
+  /* Tighter rhythm on phones */
+  :root { --section-pad: 72px; --radius: 22px; }
+  .section-head { margin-bottom: 32px; }
+  .section-dark { margin: 0 8px; padding: 56px 0; }
+  .section-dark .container { padding: 0 20px; }
+  .steps li { padding-top: 20px; padding-bottom: 12px; }
+  .tile { padding: 24px; }
+  .tile-icon { width: 52px; height: 52px; }
+  .impact-card { padding: 24px; }
+  .impact-card h3 { margin-top: 28px; }
+  .values-statement { line-height: 1.2; }
+  .join { padding-bottom: 24px; }
+  .join .container { padding: 0 12px; }
+  .join-card { padding: 36px 24px 28px; }
+  .join-card::after { width: 300px; height: 300px; right: -160px; top: -140px; }
+  .join-lede { margin-top: 18px; }
+  .footer-logo img { width: 130px; }
 
   .footer-inner { grid-template-columns: 1fr; }
   .footer-tag, .footer-copy { justify-self: start; }
