@@ -18,18 +18,19 @@ python3 -m http.server 8000
 - `styles.css` — brand styles (colours, fonts, layout)
 - `script.js` — mobile menu, header state, scroll reveal
 
-## Brand
+## Design
 
-| Token      | Hex       | Use                                  |
-|------------|-----------|--------------------------------------|
-| Black      | `#0B0B0B` | Main background                      |
-| Gold       | `#D4A63A` | Accent, highlights, CTA — sparingly  |
-| Cream      | `#F5F2EA` | Main text                            |
-| Muted grey | `#9C9585` | Labels, small text                   |
+Warm paper background with pitch green and tangerine accents. Change the colours in one place: the `:root` variables at the top of `styles.css`.
 
-Fonts: **Barlow Condensed** (Black Italic headlines, letter-spaced labels) and **DM Serif Display** (supporting lines), loaded from Google Fonts.
+| Token  | Hex       |
+|--------|-----------|
+| Paper  | `#F4EFE6` |
+| Ink    | `#141414` |
+| Green  | `#1E4D3A` |
+| Orange | `#FF6B2C` |
+| Sand   | `#E9D9B8` |
 
-The logo is being redesigned — until it's final, the header and footer use the "RALLY FOR RELIEF" letter-spaced wordmark.
+Fonts (Google Fonts): **Bricolage Grotesque** for headlines, **Instrument Sans** for body text, **Instrument Serif** italic for accent words.
 
 ## Deploying
 

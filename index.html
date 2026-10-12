@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Rally for Relief — Play hard. Give back.</title>
   <meta name="description" content="Rally for Relief (R4R) is a community built on giving back — sports tournaments, social events, community service and fundraising for people in need.">
-  <meta name="theme-color" content="#0B0B0B">
+  <meta name="theme-color" content="#F4EFE6">
 
   <meta property="og:title" content="Rally for Relief — Play hard. Give back.">
   <meta property="og:description" content="A community built on giving back. Sports, socials, service and fundraising for people in need.">
@@ -13,7 +13,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,900&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -21,7 +21,10 @@
 
   <header class="site-header">
     <div class="container header-inner">
-      <a href="#top" class="wordmark" aria-label="Rally for Relief home">RALLY FOR RELIEF</a>
+      <a href="#top" class="logo" aria-label="Rally for Relief home">
+        <span class="logo-mark" aria-hidden="true">R4R</span>
+        <span class="logo-text">Rally for Relief</span>
+      </a>
 
       <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">
         <span class="sr-only">Menu</span>
@@ -30,11 +33,10 @@
       </button>
 
       <nav id="site-nav" class="site-nav" aria-label="Main">
-        <a href="#about">About</a>
         <a href="#what-we-do">What we do</a>
-        <a href="#impact">Our work</a>
+        <a href="#impact">Impact</a>
         <a href="#team">Team</a>
-        <a href="#join" class="nav-cta">Get involved</a>
+        <a href="#join" class="btn btn-dark btn-sm">Get involved</a>
       </nav>
     </div>
   </header>
@@ -42,170 +44,212 @@
   <main id="main">
     <!-- HERO -->
     <section class="hero" id="top">
-      <div class="container">
-        <p class="label">Rally for Relief · R4R</p>
-        <h1 class="headline headline-xl">Play hard.<br><span class="gold">Give back.</span></h1>
+      <div class="container hero-inner">
+        <p class="eyebrow"><span class="dot" aria-hidden="true"></span> A community built on giving back</p>
 
-        <div class="support">
-          <p>A community built on giving back — bringing people together to support those in need.</p>
+        <h1 class="hero-title">
+          Play hard.
+          <span class="hero-line">
+            <span class="pill pill-ball" aria-hidden="true">
+              <svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="3"/><path d="M3 20h34M20 3c-6 5-6 29 0 34M20 3c6 5 6 29 0 34" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+            </span>
+            Give <em>back.</em>
+          </span>
+        </h1>
+
+        <div class="hero-bottom">
+          <p class="hero-lede">We bring people together through sports tournaments, social events, community service and fundraising — turning good games into real support for people in need.</p>
+          <div class="hero-actions">
+            <a class="btn btn-accent" href="#join">Join the next rally <span aria-hidden="true">→</span></a>
+            <a class="btn btn-ghost" href="https://instagram.com/rally4relief" target="_blank" rel="noopener">@rally4relief</a>
+          </div>
         </div>
 
-        <ul class="details-strip" aria-label="What we do">
-          <li><span class="label">Play</span><span class="detail">Sports tournaments</span></li>
-          <li><span class="label">Gather</span><span class="detail">Social events</span></li>
-          <li><span class="label">Serve</span><span class="detail">Community service</span></li>
-          <li><span class="label">Raise</span><span class="detail">Fundraising campaigns</span></li>
-        </ul>
-
-        <a class="cta-bar" href="https://instagram.com/rally4relief" target="_blank" rel="noopener">
-          Join the next rally · Follow @rally4relief
-        </a>
-      </div>
-    </section>
-
-    <!-- ABOUT -->
-    <section class="section" id="about">
-      <div class="container grid-2">
-        <div>
-          <p class="label">Who we are</p>
-          <h2 class="headline headline-lg">Built on<br>giving back.</h2>
-        </div>
-        <div class="support support-lg">
-          <p>Rally for Relief is a community of people who believe the best way to help is together. We turn the things we love — sport, good company and a bit of friendly competition — into real support for people who need it most.</p>
-          <p class="muted">Every game, every gathering and every campaign has one goal: to show up for each other.</p>
+        <div class="sticker" aria-hidden="true">
+          <svg viewBox="0 0 200 200">
+            <defs><path id="circle" d="M100,100 m-78,0 a78,78 0 1,1 156,0 a78,78 0 1,1 -156,0"/></defs>
+            <text><textPath href="#circle">PLAY HARD ✦ GIVE BACK ✦ RALLY FOR RELIEF ✦ </textPath></text>
+          </svg>
+          <span class="sticker-center">♥</span>
         </div>
       </div>
     </section>
+
+    <!-- MARQUEE -->
+    <div class="marquee-wrap" aria-hidden="true">
+    <div class="marquee">
+      <div class="marquee-track">
+        <span>Tournaments</span><i>✦</i><span>Socials</span><i>✦</i><span>Community service</span><i>✦</i><span>Fundraising</span><i>✦</i>
+        <span>Tournaments</span><i>✦</i><span>Socials</span><i>✦</i><span>Community service</span><i>✦</i><span>Fundraising</span><i>✦</i>
+      </div>
+    </div>
+    </div>
 
     <!-- WHAT WE DO -->
     <section class="section" id="what-we-do">
       <div class="container">
-        <p class="label">What we do</p>
-        <h2 class="headline headline-lg">Four ways<br>we rally.</h2>
+        <div class="section-head">
+          <p class="eyebrow">What we do</p>
+          <h2 class="section-title">Four ways we <em>rally.</em></h2>
+        </div>
 
-        <div class="cards">
-          <article class="card">
-            <span class="card-num">01</span>
-            <h3 class="headline headline-sm">Sports tournaments</h3>
-            <p>Competitive, welcoming tournaments where every entry fee goes toward the cause. Play hard — for something bigger.</p>
+        <div class="bento">
+          <article class="tile tile-green tile-wide">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8"/></svg>
+            </div>
+            <h3>Sports tournaments</h3>
+            <p>Competitive, welcoming tournaments where every entry goes toward the cause. Bring your best game — it's for something bigger.</p>
           </article>
-          <article class="card">
-            <span class="card-num">02</span>
-            <h3 class="headline headline-sm">Social events</h3>
-            <p>Bringing the community together over food, conversation and good energy — and raising support while we're at it.</p>
+
+          <article class="tile tile-sand">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.5c3 0 6 1.8 6 5.5"/></svg>
+            </div>
+            <h3>Social events</h3>
+            <p>Good food, good people, good energy — bringing the community together.</p>
           </article>
-          <article class="card">
-            <span class="card-num">03</span>
-            <h3 class="headline headline-sm">Community service</h3>
-            <p>Rolling up our sleeves with local partners to get hands-on help to the people who need it.</p>
+
+          <article class="tile tile-sand">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/></svg>
+            </div>
+            <h3>Community service</h3>
+            <p>Rolling up our sleeves with local partners to get hands-on help where it's needed.</p>
           </article>
-          <article class="card">
-            <span class="card-num">04</span>
-            <h3 class="headline headline-sm">Fundraising</h3>
-            <p>Campaigns that turn generosity into real relief — every contribution, big or small, makes a difference.</p>
+
+          <article class="tile tile-orange tile-wide">
+            <div class="tile-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M14.5 9.5c-.5-1-1.4-1.5-2.5-1.5-1.4 0-2.5.8-2.5 2s1 1.6 2.5 2 2.5.8 2.5 2-1.1 2-2.5 2c-1.1 0-2-.5-2.5-1.5M12 6.5V8M12 16v1.5"/></svg>
+            </div>
+            <h3>Fundraising campaigns</h3>
+            <p>Campaigns that turn generosity into real relief. Every contribution, big or small, makes a difference.</p>
           </article>
         </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section class="section section-dark">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow eyebrow-light">How it works</p>
+          <h2 class="section-title">Simple, really.</h2>
+        </div>
+        <ol class="steps">
+          <li>
+            <span class="step-num">01</span>
+            <h3>Show up</h3>
+            <p>Sign up for a tournament, an event or a volunteering day.</p>
+          </li>
+          <li>
+            <span class="step-num">02</span>
+            <h3>Have a good time</h3>
+            <p>Play, meet people, help out — it's meant to be fun.</p>
+          </li>
+          <li>
+            <span class="step-num">03</span>
+            <h3>Make a difference</h3>
+            <p>Everything raised goes toward supporting people in need.</p>
+          </li>
+        </ol>
       </div>
     </section>
 
     <!-- IMPACT -->
     <section class="section" id="impact">
       <div class="container">
-        <p class="label">Our work so far</p>
-        <h2 class="headline headline-lg">Showing up<br>where it counts.</h2>
+        <div class="section-head">
+          <p class="eyebrow">Our work so far</p>
+          <h2 class="section-title">Showing up where it <em>counts.</em></h2>
+        </div>
 
-        <ol class="impact-list">
-          <li>
-            <span class="label">On the court</span>
-            <div>
-              <h3 class="headline headline-sm">Charity sports tournaments</h3>
-              <p>Bringing players and supporters together to compete for a good cause — and raising funds for people in need.</p>
-            </div>
-          </li>
-          <li>
-            <span class="label">With the ICC</span>
-            <div>
-              <h3 class="headline headline-sm">Hygiene kit preparation</h3>
-              <p>Partnering with the Islamic Care Centre to prepare hygiene kits for members of our community.</p>
-            </div>
-          </li>
-          <li>
-            <span class="label">On LaunchGood</span>
-            <div>
-              <h3 class="headline headline-sm">Winter support campaign</h3>
-              <p>A fundraising campaign supporting the unhoused through the coldest months of the year.</p>
-            </div>
-          </li>
-        </ol>
+        <div class="impact">
+          <article class="impact-card">
+            <span class="tag">On the court</span>
+            <h3>Charity sports tournaments</h3>
+            <p>Bringing players and supporters together to compete for a good cause — and raising funds for people in need.</p>
+          </article>
+          <article class="impact-card">
+            <span class="tag">With the Islamic Care Centre</span>
+            <h3>Hygiene kit preparation</h3>
+            <p>Partnering with the ICC to prepare hygiene kits for members of our community.</p>
+          </article>
+          <article class="impact-card">
+            <span class="tag">On LaunchGood</span>
+            <h3>Winter support campaign</h3>
+            <p>A fundraising campaign supporting the unhoused through the coldest months of the year.</p>
+          </article>
+        </div>
       </div>
     </section>
 
     <!-- VALUES -->
-    <section class="section section-tight" aria-labelledby="values-title">
+    <section class="section values-section">
       <div class="container">
-        <p class="label" id="values-title">What we stand for</p>
-        <ul class="values">
-          <li>Community</li>
-          <li>Generosity</li>
-          <li>Faith</li>
-          <li>Showing up for each other</li>
-        </ul>
+        <p class="eyebrow">What we stand for</p>
+        <p class="values-statement">
+          We believe in <span class="hl hl-green">community</span>, <span class="hl hl-orange">generosity</span>, <span class="hl hl-sand">faith</span> — and <em>showing up for each other.</em>
+        </p>
       </div>
     </section>
 
     <!-- TEAM -->
     <section class="section" id="team">
-      <div class="container grid-2">
-        <div>
-          <p class="label">The founders</p>
-          <h2 class="headline headline-lg">Started by<br>friends.</h2>
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">The founders</p>
+          <h2 class="section-title">Started by <em>friends.</em></h2>
+          <p class="section-lede">Three friends who wanted to do more for the people around them — and figured it'd be more fun to do it together.</p>
         </div>
-        <div>
-          <div class="support support-lg">
-            <p>Three friends who wanted to do more for the people around them — and figured it'd be more fun to do it together.</p>
-          </div>
-          <ul class="founders">
-            <li><span class="headline headline-md">Mahad</span><span class="label">Co-founder</span></li>
-            <li><span class="headline headline-md">Hassan</span><span class="label">Co-founder</span></li>
-            <li><span class="headline headline-md">Abdelhamid</span><span class="label">Co-founder</span></li>
-          </ul>
-        </div>
+
+        <ul class="founders">
+          <li class="founder">
+            <span class="avatar avatar-green" aria-hidden="true">M</span>
+            <div><h3>Mahad</h3><p>Co-founder</p></div>
+          </li>
+          <li class="founder">
+            <span class="avatar avatar-orange" aria-hidden="true">H</span>
+            <div><h3>Hassan</h3><p>Co-founder</p></div>
+          </li>
+          <li class="founder">
+            <span class="avatar avatar-ink" aria-hidden="true">A</span>
+            <div><h3>Abdelhamid</h3><p>Co-founder</p></div>
+          </li>
+        </ul>
       </div>
     </section>
 
     <!-- JOIN -->
-    <section class="section join" id="join">
+    <section class="join" id="join">
       <div class="container">
-        <p class="label">Get involved</p>
-        <h2 class="headline headline-xl">Rally<br><span class="gold">with us.</span></h2>
-
-        <div class="support">
-          <p>Play in a tournament, volunteer at an event or back a campaign — there's a place for everyone. Limited spots at every event, so stay close.</p>
+        <div class="join-card">
+          <div>
+            <p class="eyebrow eyebrow-dark">Get involved</p>
+            <h2 class="join-title">Ready to <em>rally?</em></h2>
+            <p class="join-lede">Play in a tournament, volunteer at an event or back a campaign — there's a place for everyone. Limited spots at every event, so follow along to catch the next one.</p>
+          </div>
+          <div class="join-actions">
+            <a class="btn btn-dark btn-lg" href="https://instagram.com/rally4relief" target="_blank" rel="noopener">Follow @rally4relief <span aria-hidden="true">→</span></a>
+            <a class="btn btn-outline-dark btn-lg" href="mailto:rally4relief.team@gmail.com">Email us</a>
+          </div>
         </div>
-
-        <ul class="details-strip details-contact">
-          <li>
-            <span class="label">Instagram</span>
-            <a class="detail" href="https://instagram.com/rally4relief" target="_blank" rel="noopener">@rally4relief</a>
-          </li>
-          <li>
-            <span class="label">Email</span>
-            <a class="detail" href="mailto:rally4relief.team@gmail.com">rally4relief.team@gmail.com</a>
-          </li>
-        </ul>
-
-        <a class="cta-bar" href="https://instagram.com/rally4relief" target="_blank" rel="noopener">
-          Sign up · Link in bio
-        </a>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="container footer-inner">
-      <span class="wordmark">RALLY FOR RELIEF</span>
-      <span class="label">Play hard. Give back.</span>
-      <span class="label">© <span id="year">2026</span> R4R</span>
+      <a href="#top" class="logo">
+        <span class="logo-mark" aria-hidden="true">R4R</span>
+        <span class="logo-text">Rally for Relief</span>
+      </a>
+      <p class="footer-tag">Play hard. <em>Give back.</em></p>
+      <div class="footer-links">
+        <a href="https://instagram.com/rally4relief" target="_blank" rel="noopener">Instagram</a>
+        <a href="mailto:rally4relief.team@gmail.com">rally4relief.team@gmail.com</a>
+      </div>
+      <p class="footer-copy">© <span id="year">2026</span> Rally for Relief</p>
     </div>
   </footer>
 
