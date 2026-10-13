@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Organiser — Rally for Relief</title>
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#0B0B0B">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body class="app">
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="./" class="logo" aria-label="Organiser dashboard">
+        <img src="../assets/logo-mark.png" alt="R4R" width="796" height="312">
+        <span class="logo-text">Organiser</span>
+      </a>
+      <div class="admin-user" id="admin-user"></div>
+    </div>
+  </header>
+
+  <main id="main" class="app-main">
+    <div class="container" id="view">
+      <div class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading…</div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="../assets/js/admin.js"></script>
+</body>
+</html>

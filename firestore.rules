@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// Paste this into Firebase console → Firestore Database → Rules, then Publish.
+// Anyone can read tournaments; only the organiser emails below can change them.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOrganiser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in [
+          'rally4relief.team@gmail.com'
+          // Add each organiser's Google email here, e.g.:
+          // , 'someone@gmail.com'
+        ];
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create, update, delete: if isOrganiser();
+    }
+  }
+}

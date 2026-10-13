@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tournaments — Rally for Relief</title>
+  <meta name="description" content="Live scores, standings and brackets for Rally for Relief tournaments.">
+  <meta name="theme-color" content="#0B0B0B">
+  <link rel="icon" type="image/png" href="../assets/favicon.png">
+  <link rel="apple-touch-icon" href="../assets/favicon.png">
+  <meta property="og:title" content="Tournaments — Rally for Relief">
+  <meta property="og:description" content="Live scores, standings and brackets.">
+  <meta property="og:image" content="../assets/og.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../assets/css/app.css">
+</head>
+<body class="app">
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
+      <a href="../" class="logo" aria-label="Rally for Relief home">
+        <img src="../assets/logo-mark.png" alt="R4R" width="796" height="312">
+        <span class="logo-text">Tournaments</span>
+      </a>
+
+      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav">
+        <span class="sr-only">Menu</span>
+        <span class="nav-toggle-bar"></span>
+        <span class="nav-toggle-bar"></span>
+      </button>
+
+      <nav id="site-nav" class="site-nav" aria-label="Main">
+        <a href="../">Home</a>
+        <a href="./">Tournaments</a>
+        <a href="../#join" class="btn btn-accent btn-sm">Get involved</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="app-main">
+    <div class="container" id="view">
+      <div class="loading" role="status"><span class="spinner" aria-hidden="true"></span> Loading tournaments…</div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <a href="../" class="footer-logo" aria-label="Rally for Relief home">
+        <img src="../assets/logo.png" alt="R4R — Rally for Relief" width="796" height="417">
+      </a>
+      <p class="footer-tag">Play hard. <em>Give back.</em></p>
+      <div class="footer-links">
+        <a href="https://instagram.com/rally4relief" target="_blank" rel="noopener">Instagram</a>
+        <a href="mailto:rally4relief.team@gmail.com">rally4relief.team@gmail.com</a>
+        <a href="../admin/">Organiser login</a>
+      </div>
+      <p class="footer-copy">© <span id="year">2026</span> Rally for Relief</p>
+    </div>
+  </footer>
+
+  <script src="../script.js"></script>
+  <script type="module" src="../assets/js/public.js"></script>
+</body>
+</html>
