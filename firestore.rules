@@ -19,5 +19,11 @@ service cloud.firestore {
       allow read: if true;
       allow create, update, delete: if isOrganiser();
     }
+
+    // Site-wide settings such as the donation campaign
+    match /site/{docId} {
+      allow read: if true;
+      allow create, update, delete: if isOrganiser();
+    }
   }
 }

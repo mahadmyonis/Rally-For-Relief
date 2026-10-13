@@ -45,6 +45,11 @@ Logo files live in `assets/`: `logo.png` (full lockup), `logo-mark.png` (R4R onl
 
 Scores count as goals, points or sets, whatever suits the sport. For volleyball, enter the sets each team won, e.g. 2–1. Win, draw and loss points can be changed per tournament under **Settings**.
 
+### Sign-ups and donations
+
+- **Team sign-ups:** in a tournament's **Settings**, paste your sign-up form link (e.g. a Google Form) and tick **Sign-ups are open**. A "Sign up your team" button then appears on the home page ticket and on the tournament page. Untick it to close sign-ups. Sign-ups also close automatically when the tournament is set to Finished.
+- **Donations:** on the organiser dashboard, fill in **Donations**: the campaign name, the donation link (e.g. LaunchGood), a short description, the amount raised and the goal. Then tick **Show on the website**. The home page gets a donation section with a progress bar, plus "Donate" links in the menu and footer. Update "Raised so far" whenever you like.
+
 ### How the standings are worked out
 
 - Only games marked **Final** count. Live games don't change the table until they're finished.
@@ -62,7 +67,7 @@ Until Firebase is connected, both pages run in **demo mode**: everything is save
 
 1. Go to <https://console.firebase.google.com>, click **Create a project** and name it e.g. `rally4relief`. Google Analytics isn't needed.
 2. **Firestore:** **Build → Firestore Database → Create database**. Pick a location near you and start in **production mode**.
-3. **Rules:** in Firestore, open the **Rules** tab, paste in the contents of `firestore.rules`, add every organiser's Google email to the list, then click **Publish**.
+3. **Rules:** in Firestore, open the **Rules** tab, paste in the contents of `firestore.rules`, add every organiser's Google email to the list, then click **Publish**. Paste them in again whenever `firestore.rules` changes.
 4. **Sign-in:** **Build → Authentication → Get started → Google → Enable**, then save.
 5. **Allowed domains:** under **Authentication → Settings → Authorized domains**, add `rally4relief.com` and `www.rally4relief.com`.
 6. **Web app config:** **Project settings** (gear icon) **→ Your apps → Web (</>)**. Register an app, copy the `firebaseConfig` object, and paste it into `assets/js/firebase-config.js` in place of `null`.

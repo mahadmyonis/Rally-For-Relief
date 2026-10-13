@@ -686,3 +686,27 @@ button.btn { cursor: pointer; font-family: var(--font-body); }
 th { white-space: nowrap; }
 
 .rules-note { margin-top: 24px; color: var(--grey); font-size: 14px; max-width: 70ch; }
+
+/* Sign-ups */
+.chip-signup { background: rgba(212, 166, 58, 0.16); color: var(--gold); }
+.signup-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 20px 24px;
+  margin-bottom: 28px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid rgba(212, 166, 58, 0.5);
+  box-shadow: inset 4px 0 0 var(--gold);
+}
+.signup-title { font-family: var(--font-display); font-weight: 800; font-size: 24px; letter-spacing: -0.02em; }
+.signup-sub { color: var(--grey); margin-top: 2px; }
+.donate-form { display: flex; flex-direction: column; gap: 14px; }
+.donate-form textarea { width: 100%; resize: vertical; }
+.list-title { margin: 32px 0 16px; }
+@media (max-width: 560px) {
+  .signup-cta .btn { width: 100%; }
+}

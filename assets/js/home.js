@@ -1,7 +1,10 @@
-// Rally for Relief — home page: promote the live or next upcoming tournament
+// Rally for Relief — home page live bits:
+// the next/live tournament ticket and the donation campaign.
 
 import { store } from "./store.js";
-import { esc } from "./ui.js";
+import { esc, safeUrl, money, signupsOpen } from "./ui.js";
+
+// --- Next tournament ticket ---------------------------------------------------
 
 const box = document.getElementById("promo");
 let timer = null;
@@ -31,38 +34,32 @@ function pick(list) {
 }
 
 // Counts down to the start of the tournament day
-function countdownParts(iso) {
-  const d = parseDate(iso);
-  if (!d) return null;
-  const ms = Math.max(0, d - Date.now());
-  return {
-    days: Math.floor(ms / 86400000),
-    hrs: Math.floor(ms / 3600000) % 24,
-    min: Math.floor(ms / 60000) % 60
-  };
-}
-
 function countdownHtml(iso) {
-  const c = countdownParts(iso);
-  if (!c) return "";
+  const d = parseDate(iso);
+  if (!d) return "";
+  const ms = Math.max(0, d - Date.now());
+  const days = Math.floor(ms / 86400000);
+  const hrs = Math.floor(ms / 3600000) % 24;
+  const min = Math.floor(ms / 60000) % 60;
   const pad = (n) => String(n).padStart(2, "0");
   return `
-    <div class="countdown" aria-label="${c.days} days, ${c.hrs} hours and ${c.min} minutes to go">
-      <div><b>${c.days}</b><small>Days</small></div>
-      <div><b>${pad(c.hrs)}</b><small>Hrs</small></div>
-      <div><b>${pad(c.min)}</b><small>Min</small></div>
+    <div class="countdown" aria-label="${days} days, ${hrs} hours and ${min} minutes to go">
+      <div><b>${days}</b><small>Days</small></div>
+      <div><b>${pad(hrs)}</b><small>Hrs</small></div>
+      <div><b>${pad(min)}</b><small>Min</small></div>
     </div>`;
 }
 
-function render(list) {
+function renderTicket(list) {
   clearInterval(timer);
   const t = pick(list);
   if (!t) { box.hidden = true; box.innerHTML = ""; return; }
 
   const live = t.status === "live";
   const date = parseDate(t.date);
-  const days = daysUntil(t.date);
-  const gameDay = days === 0;
+  const gameDay = daysUntil(t.date) === 0;
+  const page = `tournaments/?t=${encodeURIComponent(t.id)}`;
+  const signup = signupsOpen(t) ? safeUrl(t.signupUrl) : "";
 
   const stub = live
     ? `<span class="stub-dot" aria-hidden="true"></span><span class="stub-live">LIVE</span><span class="stub-bottom">Right now</span>`
@@ -74,14 +71,21 @@ function render(list) {
          </span>`
       : `<span class="stub-live">TBA</span><span class="stub-bottom">Date soon</span>`;
 
+  const buttons = live
+    ? `<a class="btn btn-accent" href="${page}">Follow live scores <span aria-hidden="true">→</span></a>`
+    : signup
+      ? `<a class="btn btn-accent" href="${esc(signup)}" target="_blank" rel="noopener">Sign up your team <span aria-hidden="true">↗</span></a>
+         <a class="btn btn-ghost" href="${page}">See the details</a>`
+      : `<a class="btn btn-accent" href="${page}">${gameDay ? "See today's games" : "See the details"} <span aria-hidden="true">→</span></a>`;
+
   box.innerHTML = `
     <div class="container">
-      <a class="ticket" href="tournaments/?t=${encodeURIComponent(t.id)}">
+      <article class="ticket">
         <div class="ticket-stub">${stub}</div>
         <div class="ticket-body">
           <div>
-            <p class="promo-label">${live ? "Happening now" : gameDay ? "It's game day" : "Next tournament"}</p>
-            <h2 class="promo-title">${esc(t.name)}</h2>
+            <p class="promo-label">${live ? "Happening now" : gameDay ? "It's game day" : signup ? "Sign-ups open" : "Next tournament"}</p>
+            <h2 class="promo-title"><a href="${page}">${esc(t.name)}</a></h2>
             <p class="promo-meta">
               ${t.location ? `<span>📍 ${esc(t.location)}</span>` : ""}
               ${live ? `<span class="promo-hot">🏐 Scores updating live</span>` : `<span class="promo-hot">Limited spots</span>`}
@@ -89,10 +93,10 @@ function render(list) {
           </div>
           <div class="ticket-side">
             ${!live && !gameDay ? `<div class="countdown-slot">${countdownHtml(t.date)}</div>` : ""}
-            <span class="btn btn-accent promo-cta">${live ? "Follow live scores" : gameDay ? "See today's games" : "See the details"} <span aria-hidden="true">→</span></span>
+            <div class="ticket-actions">${buttons}</div>
           </div>
         </div>
-      </a>
+      </article>
     </div>`;
   box.hidden = false;
 
@@ -107,6 +111,51 @@ function render(list) {
   if (slot) timer = setInterval(() => { slot.innerHTML = countdownHtml(t.date); }, 30000);
 }
 
-// Demo mode only has data in the organiser's own browser, so keep the
-// promo off the public home page until Firebase is connected
-if (store.mode === "firebase") store.watchTournaments(render);
+// --- Donation campaign --------------------------------------------------------
+
+const donateBox = document.getElementById("donate");
+const donateLinks = document.querySelectorAll("[data-donate-link]");
+
+function renderDonate(site) {
+  const d = (site && site.donate) || {};
+  const url = safeUrl(d.url);
+  const show = Boolean(d.show && url);
+  donateLinks.forEach((a) => { a.hidden = !show; });
+  if (!show) { donateBox.hidden = true; donateBox.innerHTML = ""; return; }
+
+  const goal = Number(d.goal) || 0;
+  const raised = Number(d.raised) || 0;
+  const pct = goal > 0 ? Math.min(100, (raised / goal) * 100) : 0;
+  const reached = goal > 0 && raised >= goal;
+
+  donateBox.innerHTML = `
+    <div class="container">
+      <div class="donate-card">
+        <div class="donate-copy">
+          <p class="eyebrow"><span class="dot" aria-hidden="true"></span> Give back</p>
+          <h2 class="section-title">${esc(d.title || "Support our campaign")}</h2>
+          ${d.blurb ? `<p class="donate-blurb">${esc(d.blurb)}</p>` : ""}
+        </div>
+        <div class="donate-side">
+          ${goal > 0 ? `
+            <div class="donate-progress">
+              <p class="donate-raised">${esc(money(raised))}</p>
+              <p class="donate-of">${reached ? "raised — goal reached, thank you! 🎉" : `raised of ${esc(money(goal))} goal`}</p>
+              <div class="donate-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${goal}" aria-valuenow="${raised}" aria-label="Amount raised">
+                <span style="width:${pct.toFixed(1)}%"></span>
+              </div>
+              <p class="donate-pct">${Math.floor(pct)}%</p>
+            </div>` : ""}
+          <a class="btn btn-accent btn-lg donate-btn" href="${esc(url)}" target="_blank" rel="noopener">Donate now <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </div>`;
+  donateBox.hidden = false;
+}
+
+// Demo mode only has data in the organiser's own browser, so keep these off
+// the public home page until Firebase is connected
+if (store.mode === "firebase") {
+  store.watchTournaments(renderTicket);
+  store.watchSite(renderDonate);
+}

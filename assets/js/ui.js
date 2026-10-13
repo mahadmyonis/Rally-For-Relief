@@ -30,3 +30,25 @@ export function statusChip(status) {
 export function query(name) {
   return new URLSearchParams(location.search).get(name);
 }
+
+// Only allow normal web links (stops "javascript:" and other odd schemes)
+export function safeUrl(url) {
+  const s = String(url || "").trim();
+  if (!s) return "";
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(s) ? s : `https://${s}`;
+  try {
+    const u = new URL(withScheme);
+    return u.protocol === "https:" || u.protocol === "http:" ? u.href : "";
+  } catch {
+    return "";
+  }
+}
+
+export function money(n) {
+  const v = Number(n) || 0;
+  return "$" + v.toLocaleString("en-CA", { maximumFractionDigits: 0 });
+}
+
+export function signupsOpen(t) {
+  return Boolean(t && t.signupsOpen && safeUrl(t.signupUrl) && t.status !== "finished");
+}

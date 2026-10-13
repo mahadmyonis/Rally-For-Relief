@@ -3,7 +3,7 @@
 
 import { store, DELETE } from "./store.js";
 import * as C from "./tournament-core.js";
-import { esc, formatDate, formatTime, statusChip, query } from "./ui.js";
+import { esc, formatDate, formatTime, statusChip, query, safeUrl, money } from "./ui.js";
 
 const view = document.getElementById("view");
 const userBox = document.getElementById("admin-user");
@@ -127,6 +127,12 @@ function renderDashboard(list) {
       <button class="btn btn-accent" type="submit">Create tournament <span aria-hidden="true">→</span></button>
     </form>
 
+    <section class="panel" id="donate-panel">
+      <h2 class="panel-title">Donations</h2>
+      <p class="muted-sm">Loading…</p>
+    </section>
+
+    ${sorted.length ? `<h2 class="panel-title list-title">Tournaments</h2>` : ""}
     ${sorted.length ? `<div class="t-grid">${sorted.map((t) => `
       <a class="t-card" href="?t=${encodeURIComponent(t.id)}">
         <div class="t-card-top">${statusChip(t.status)}${t.published ? "" : `<span class="chip chip-draft">Hidden</span>`}</div>
@@ -135,6 +141,8 @@ function renderDashboard(list) {
         <p class="t-card-foot"><span>${Object.keys(t.teams || {}).length} teams</span><span>Manage →</span></p>
       </a>`).join("")}</div>` : `<p class="muted-sm">No tournaments yet — create your first one above.</p>`}
   `;
+
+  renderDonations(view.querySelector("#donate-panel"));
 
   view.querySelector("#new-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -153,6 +161,68 @@ function renderDashboard(list) {
       });
       sessionStorageSet("r4r-admin-tab", "teams");
       location.href = `?t=${encodeURIComponent(newId)}`;
+    } catch (err) {
+      toast(friendlyError(err), "error");
+    }
+  });
+}
+
+// --- Donations (site-wide) --------------------------------------------------------
+
+let siteSettings = null;
+let watchingSite = false;
+
+function renderDonations(panel) {
+  if (!panel) return;
+  if (!watchingSite) {
+    watchingSite = true;
+    store.watchSite((site) => {
+      siteSettings = site || {};
+      const live = document.getElementById("donate-panel");
+      const a = document.activeElement;
+      if (live && !(a && live.contains(a) && /^(INPUT|TEXTAREA)$/.test(a.tagName))) renderDonations(live);
+    });
+  }
+  if (!siteSettings) return; // still loading — the watcher renders it
+  const d = (siteSettings && siteSettings.donate) || {};
+  const pct = d.goal > 0 ? Math.min(100, Math.floor(((d.raised || 0) / d.goal) * 100)) : 0;
+  panel.innerHTML = `
+    <h2 class="panel-title">Donations</h2>
+    <p class="muted-sm">Shows a donation campaign with a progress bar on the home page, plus "Donate" buttons in the menu and footer.</p>
+    <form id="donate-form" class="donate-form">
+      <div class="field-row">
+        <label class="field grow"><span>Campaign name</span><input name="title" maxlength="80" placeholder="e.g. Winter Relief for the Unhoused" value="${esc(d.title || "")}"></label>
+        <label class="field grow"><span>Donation link</span><input name="url" type="text" inputmode="url" autocapitalize="off" spellcheck="false" maxlength="500" placeholder="https://www.launchgood.com/…" value="${esc(d.url || "")}"></label>
+      </div>
+      <label class="field"><span>Short description</span><textarea name="blurb" rows="2" maxlength="240" placeholder="One or two lines on what the money does.">${esc(d.blurb || "")}</textarea></label>
+      <div class="field-row">
+        <label class="field"><span>Raised so far ($)</span><input name="raised" type="number" min="0" step="1" inputmode="numeric" value="${Number(d.raised) || 0}"></label>
+        <label class="field"><span>Goal ($)</span><input name="goal" type="number" min="0" step="1" inputmode="numeric" value="${Number(d.goal) || 0}"></label>
+      </div>
+      ${d.goal > 0 ? `<p class="muted-sm">Currently showing ${esc(money(d.raised))} of ${esc(money(d.goal))} (${pct}%). Set the goal to 0 to hide the progress bar.</p>` : ""}
+      <label class="check big"><input type="checkbox" name="show" ${d.show ? "checked" : ""}> Show on the website</label>
+      <div><button class="btn btn-accent" type="submit">Save donations</button></div>
+    </form>`;
+
+  panel.querySelector("#donate-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const f = new FormData(e.target);
+    const url = safeUrl(f.get("url"));
+    if (String(f.get("url") || "").trim() && !url) return toast("That donation link doesn't look right — it should start with https://", "error");
+    if (f.get("show") === "on" && !url) return toast("Add the donation link before showing it on the website.", "error");
+    const n = (k) => Math.max(0, Math.round(Number(f.get(k)) || 0));
+    try {
+      await store.updateSite({
+        donate: {
+          title: String(f.get("title") || "").trim(),
+          url,
+          blurb: String(f.get("blurb") || "").trim(),
+          raised: n("raised"),
+          goal: n("goal"),
+          show: f.get("show") === "on"
+        }
+      });
+      toast("Donations saved");
     } catch (err) {
       toast(friendlyError(err), "error");
     }
@@ -609,6 +679,13 @@ function renderSetup(t, panel) {
       </div>
       <label class="check big"><input type="checkbox" name="published" ${t.published ? "checked" : ""}> Show on public site</label>
 
+      <h2 class="panel-title">Team sign-ups</h2>
+      <p class="muted-sm">Paste the link to your sign-up form (e.g. a Google Form). While sign-ups are open, a "Sign up your team" button shows on the home page and the tournament page.</p>
+      <div class="field-row">
+        <label class="field grow"><span>Sign-up form link</span><input name="signupUrl" type="text" inputmode="url" autocapitalize="off" spellcheck="false" maxlength="500" placeholder="https://forms.gle/…" value="${esc(t.signupUrl || "")}"></label>
+      </div>
+      <label class="check"><input type="checkbox" name="signupsOpen" ${t.signupsOpen ? "checked" : ""}> Sign-ups are open</label>
+
       <h2 class="panel-title">Points</h2>
       <p class="muted-sm">How many standings points a team gets for each result. For volleyball, enter the sets each team won as the score.</p>
       <div class="field-row">
@@ -629,12 +706,22 @@ function renderSetup(t, panel) {
   panel.querySelector("#setup-form").addEventListener("submit", (e) => {
     e.preventDefault();
     const f = new FormData(e.target);
+    if (String(f.get("signupUrl") || "").trim() && !safeUrl(f.get("signupUrl"))) {
+      toast("That sign-up link doesn't look right — it should start with https://", "error");
+      return;
+    }
+    if (f.get("signupsOpen") === "on" && !safeUrl(f.get("signupUrl"))) {
+      toast("Add the sign-up form link before opening sign-ups.", "error");
+      return;
+    }
     const n = (k) => Math.max(0, Math.floor(Number(f.get(k)) || 0));
     save({
       name: String(f.get("name")).trim() || t.name,
       date: f.get("date") || "",
       location: String(f.get("location") || "").trim(),
       published: f.get("published") === "on",
+      signupUrl: safeUrl(f.get("signupUrl")),
+      signupsOpen: f.get("signupsOpen") === "on",
       settings: { win: n("win"), draw: n("draw"), loss: n("loss"), allowDraws: f.get("allowDraws") === "on" }
     }, "Settings saved");
   });

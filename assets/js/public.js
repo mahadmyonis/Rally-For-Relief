@@ -2,7 +2,7 @@
 
 import { store } from "./store.js";
 import * as C from "./tournament-core.js";
-import { esc, formatDate, formatTime, statusChip, query } from "./ui.js";
+import { esc, formatDate, formatTime, statusChip, query, safeUrl, signupsOpen } from "./ui.js";
 
 const view = document.getElementById("view");
 const id = query("t");
@@ -36,7 +36,7 @@ function renderList(list) {
       const teams = Object.keys(t.teams || {}).length;
       return `
         <a class="t-card" href="?t=${encodeURIComponent(t.id)}">
-          <div class="t-card-top">${statusChip(t.status)}</div>
+          <div class="t-card-top">${statusChip(t.status)}${signupsOpen(t) ? `<span class="chip chip-signup">Sign-ups open</span>` : ""}</div>
           <h2>${esc(t.name)}</h2>
           <p class="t-meta">
             ${t.date ? `<span>📅 ${esc(formatDate(t.date))}</span>` : ""}
@@ -213,9 +213,18 @@ function renderTournament(t) {
       <p class="t-meta">
         ${t.date ? `<span>📅 ${esc(formatDate(t.date))}</span>` : ""}
         ${t.location ? `<span>📍 ${esc(t.location)}</span>` : ""}
-        <span>👥 ${teams.length} teams</span>
+        ${teams.length ? `<span>👥 ${teams.length} team${teams.length === 1 ? "" : "s"}</span>` : ""}
       </p>
     </header>
+
+    ${signupsOpen(t) ? `
+      <div class="signup-cta">
+        <div>
+          <p class="signup-title">Sign-ups are open</p>
+          <p class="signup-sub">Limited spots — get your team in early.</p>
+        </div>
+        <a class="btn btn-accent" href="${esc(safeUrl(t.signupUrl))}" target="_blank" rel="noopener">Sign up your team <span aria-hidden="true">↗</span></a>
+      </div>` : ""}
 
     ${champId ? `<div class="champion"><span class="champion-icon" aria-hidden="true">🏆</span><div><p class="eyebrow eyebrow-dark">Champions</p><p class="champion-name">${esc(C.teamName(t, champId))}</p></div></div>` : ""}
 

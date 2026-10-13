@@ -9,6 +9,8 @@
 //   createTournament(data)     → id
 //   updateTournament(id, patch) patch keys may be dotted, e.g. "matches.m1.hs"
 //   deleteTournament(id)
+//   watchSite(cb)              live site-wide settings (donations) → unsubscribe()
+//   updateSite(patch)          merge into site-wide settings
 //   onAuth(cb)                 cb(user | null) → unsubscribe()
 //   signIn(), signOut()
 
@@ -70,6 +72,13 @@ async function firebaseStore() {
     deleteTournament(id) {
       return fs.deleteDoc(fs.doc(db, "tournaments", id));
     },
+    watchSite(cb) {
+      return fs.onSnapshot(fs.doc(db, "site", "settings"), (d) => cb(d.exists() ? d.data() : {}),
+        (err) => { console.error(err); cb({}, err); });
+    },
+    updateSite(patch) {
+      return fs.setDoc(fs.doc(db, "site", "settings"), { ...patch, updatedAt: Date.now() }, { merge: true });
+    },
     onAuth(cb) {
       return auth.onAuthStateChanged(au, cb);
     },
@@ -84,7 +93,9 @@ async function firebaseStore() {
 
 function demoStore() {
   const KEY = "r4r-demo-tournaments";
+  const SITE_KEY = "r4r-demo-site";
   const listeners = new Set();
+  const siteListeners = new Set();
   const read = () => {
     try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; }
   };
@@ -93,7 +104,10 @@ function demoStore() {
     listeners.forEach((fn) => fn());
   };
   // Other tabs (e.g. the public page open next to the admin) update live too
-  window.addEventListener("storage", (e) => { if (e.key === KEY) listeners.forEach((fn) => fn()); });
+  window.addEventListener("storage", (e) => {
+    if (e.key === KEY) listeners.forEach((fn) => fn());
+    if (e.key === SITE_KEY) siteListeners.forEach((fn) => fn());
+  });
   const listen = (fn) => { listeners.add(fn); fn(); return () => listeners.delete(fn); };
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
@@ -127,6 +141,19 @@ function demoStore() {
       const all = read();
       delete all[id];
       write(all);
+    },
+    watchSite(cb) {
+      const get = () => { try { return JSON.parse(localStorage.getItem(SITE_KEY)) || {}; } catch { return {}; } };
+      const fn = () => cb(get());
+      siteListeners.add(fn);
+      fn();
+      return () => siteListeners.delete(fn);
+    },
+    async updateSite(patch) {
+      let cur = {};
+      try { cur = JSON.parse(localStorage.getItem(SITE_KEY)) || {}; } catch { /* ignore */ }
+      try { localStorage.setItem(SITE_KEY, JSON.stringify({ ...cur, ...clone(patch), updatedAt: Date.now() })); } catch (e) { console.error(e); }
+      siteListeners.forEach((fn) => fn());
     },
     onAuth(cb) {
       authListeners.add(cb);
