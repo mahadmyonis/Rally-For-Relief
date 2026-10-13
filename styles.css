@@ -365,6 +365,109 @@ em {
   60% { transform: translateY(16px); opacity: 0; }
 }
 
+/* --- Next tournament promo --------------------------------------------- */
+
+.promo { padding: 0 0 clamp(48px, 7vw, 80px); }
+
+.promo-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px 48px;
+  padding: clamp(28px, 4vw, 44px);
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid rgba(212, 166, 58, 0.45);
+  text-decoration: none;
+  transition: border-color 0.25s ease, transform 0.25s ease;
+}
+.promo-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+.promo-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--gold);
+}
+
+.promo-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.promo-live-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: promo-pulse 1.6s ease-out infinite;
+}
+@keyframes promo-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(212, 166, 58, 0.6); }
+  100% { box-shadow: 0 0 0 10px rgba(212, 166, 58, 0); }
+}
+
+.promo-title {
+  margin-top: 12px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(32px, 5vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+.promo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin-top: 16px;
+  color: var(--grey);
+  font-size: 17px;
+}
+.promo-meta strong { color: var(--cream); font-weight: 600; }
+
+.promo-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+  text-align: right;
+}
+.promo-countdown {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(40px, 6vw, 72px);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--gold);
+}
+.promo-countdown span {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--grey);
+}
+.promo-cta { pointer-events: none; }
+
+@media (max-width: 720px) {
+  .promo-card { grid-template-columns: 1fr; }
+  .promo-side { align-items: stretch; text-align: left; }
+  .promo-cta { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-live-dot { animation: none; }
+}
+
 /* --- Marquee -------------------------------------------------------------- */
 
 .marquee-wrap { overflow: hidden; padding: 16px 0; }
