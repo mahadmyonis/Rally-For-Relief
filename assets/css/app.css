@@ -684,3 +684,5 @@ button.btn { cursor: pointer; font-family: var(--font-body); }
 .field-row .field:not(.grow) { max-width: 240px; }
 .stepper .step[data-step="-1"] { order: 1; }
 th { white-space: nowrap; }
+
+.rules-note { margin-top: 24px; color: var(--grey); font-size: 14px; max-width: 70ch; }

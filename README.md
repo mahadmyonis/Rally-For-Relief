@@ -45,6 +45,17 @@ Logo files live in `assets/`: `logo.png` (full lockup), `logo-mark.png` (R4R onl
 
 Scores count as goals, points or sets, whatever suits the sport. For volleyball, enter the sets each team won, e.g. 2–1. Win, draw and loss points can be changed per tournament under **Settings**.
 
+### How the standings are worked out
+
+- Only games marked **Final** count. Live games don't change the table until they're finished.
+- Each team gets the Win, Draw or Loss points set in **Settings**. The defaults are 3, 1 and 0.
+- **+/−** is total scored minus total conceded across a team's group games.
+- Teams level on points are ranked by: **score difference**, then **total scored**, then **head-to-head**. Head-to-head is a mini-table of just the games between the tied teams: points, then difference, then scored. If they're still level, it goes by **wins**, then alphabetical order.
+- A group's teams go into the bracket only once **every game in that group is final**. Group winners face runners-up, and teams from the same group are kept apart in the first knockout round.
+- Knockout games can't end tied. The winner moves on automatically, and byes go through without playing.
+
+The maths is covered by automated tests. Run `node --test tests/tournament-core.test.mjs` after any change to `tournament-core.js`.
+
 Until Firebase is connected, both pages run in **demo mode**: everything is saved only in the browser you're using, which is handy for trying things out.
 
 ### Connecting Firebase (one-time, free)

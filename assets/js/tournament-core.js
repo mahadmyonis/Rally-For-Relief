@@ -93,28 +93,50 @@ export function isPlayed(m) {
   return m.status === "final" && Number.isFinite(m.hs) && Number.isFinite(m.as);
 }
 
-export function computeStandings(t, group) {
+// Tally results for the given teams, counting only games between two of them
+function tally(t, teamIds, games) {
   const s = Object.assign({}, DEFAULT_SETTINGS, t.settings);
   const rows = {};
-  group.teamIds.forEach((id) => {
+  teamIds.forEach((id) => {
     rows[id] = { id, name: teamName(t, id), p: 0, w: 0, d: 0, l: 0, f: 0, a: 0, diff: 0, pts: 0 };
   });
-  matchList(t)
-    .filter((m) => m.stage === "group" && m.group === group.id && isPlayed(m))
-    .forEach((m) => {
-      const h = rows[m.home && m.home.id];
-      const a = rows[m.away && m.away.id];
-      if (!h || !a) return;
-      h.p++; a.p++;
-      h.f += m.hs; h.a += m.as;
-      a.f += m.as; a.a += m.hs;
-      if (m.hs > m.as) { h.w++; a.l++; h.pts += s.win; a.pts += s.loss; }
-      else if (m.hs < m.as) { a.w++; h.l++; a.pts += s.win; h.pts += s.loss; }
-      else { h.d++; a.d++; h.pts += s.draw; a.pts += s.draw; }
-    });
-  return Object.values(rows)
-    .map((r) => ({ ...r, diff: r.f - r.a }))
-    .sort((x, y) => y.pts - x.pts || y.diff - x.diff || y.f - x.f || y.w - x.w || x.name.localeCompare(y.name));
+  games.forEach((m) => {
+    const h = rows[m.home && m.home.id];
+    const a = rows[m.away && m.away.id];
+    if (!h || !a) return;
+    h.p++; a.p++;
+    h.f += m.hs; h.a += m.as;
+    a.f += m.as; a.a += m.hs;
+    if (m.hs > m.as) { h.w++; a.l++; h.pts += s.win; a.pts += s.loss; }
+    else if (m.hs < m.as) { a.w++; h.l++; a.pts += s.win; h.pts += s.loss; }
+    else { h.d++; a.d++; h.pts += s.draw; a.pts += s.draw; }
+  });
+  Object.values(rows).forEach((r) => { r.diff = r.f - r.a; });
+  return rows;
+}
+
+const byMain = (x, y) => y.pts - x.pts || y.diff - x.diff || y.f - x.f;
+
+// Ranking: points → score difference → scored → head-to-head between the
+// tied teams (points, difference, scored) → wins → name.
+export function computeStandings(t, group) {
+  const games = matchList(t).filter((m) => m.stage === "group" && m.group === group.id && isPlayed(m));
+  const rows = Object.values(tally(t, group.teamIds, games)).sort(byMain);
+
+  const out = [];
+  for (let i = 0; i < rows.length;) {
+    let j = i + 1;
+    while (j < rows.length && byMain(rows[i], rows[j]) === 0) j++;
+    const tied = rows.slice(i, j);
+    if (tied.length > 1) {
+      const ids = tied.map((r) => r.id);
+      const h2h = tally(t, ids, games);
+      tied.sort((x, y) => byMain(h2h[x.id], h2h[y.id]) || y.w - x.w || x.name.localeCompare(y.name));
+    }
+    out.push(...tied);
+    i = j;
+  }
+  return out;
 }
 
 export function groupComplete(t, groupId) {
@@ -220,10 +242,12 @@ export function buildKnockout(seeds, { thirdPlace = false } = {}) {
         home, away, hs: null, as: null, status: "scheduled", time: "", court: ""
       };
     }
+    if (r === 1) separateGroups(ids.map((id) => out[id]));
     prev = ids;
   }
-  if (thirdPlace && rounds >= 2) {
-    const semis = Object.entries(out).filter(([, m]) => m.round === rounds - 1).sort((a, b) => a[1].slot - b[1].slot);
+  const semis = Object.entries(out).filter(([, m]) => m.round === rounds - 1).sort((a, b) => a[1].slot - b[1].slot);
+  // A semi-final against a bye has no loser, so a third-place game can't happen
+  if (thirdPlace && rounds >= 2 && !semis.some(([, m]) => isByeMatch(m))) {
     out[uid("k")] = {
       stage: "ko", group: null, round: rounds, slot: 1, rounds, third: true,
       home: { t: "loser", m: semis[0][0] }, away: { t: "loser", m: semis[1][0] },
@@ -231,6 +255,26 @@ export function buildKnockout(seeds, { thirdPlace = false } = {}) {
     };
   }
   return out;
+}
+
+// If two teams from the same group meet in round 1, swap opponents with
+// another round-1 game so neither game is an all-group clash.
+function separateGroups(firstRound) {
+  const grp = (src) => (src && src.t === "group" ? src.g : null);
+  const clash = (a, b) => grp(a) !== null && grp(a) === grp(b);
+  firstRound.forEach((m, i) => {
+    if (!clash(m.home, m.away)) return;
+    for (let j = 0; j < firstRound.length; j++) {
+      const o = firstRound[j];
+      if (j === i) continue;
+      // Swap like-for-like (runner-up for runner-up) to keep the seeding fair
+      if (o.away.t !== m.away.t || (o.away.pos ?? 0) !== (m.away.pos ?? 0)) continue;
+      if (!clash(m.home, o.away) && !clash(o.home, m.away)) {
+        [m.away, o.away] = [o.away, m.away];
+        return;
+      }
+    }
+  });
 }
 
 // Seeds from group finishing positions: all group winners, then runners-up…

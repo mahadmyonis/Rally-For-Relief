@@ -112,6 +112,10 @@ function matchesTab(t) {
 
 function standingsTab(t) {
   const draws = (t.settings || {}).allowDraws !== false;
+  const s = Object.assign({}, C.DEFAULT_SETTINGS, t.settings);
+  const pts = (n) => `${n} pt${n === 1 ? "" : "s"}`;
+  const rules = `<p class="rules-note">Win ${pts(s.win)}${draws ? ` · Draw ${pts(s.draw)}` : ""} · Loss ${pts(s.loss)}.
+    Ties are split by score difference (+/−), then total scored, then the result between the tied teams.</p>`;
   return (t.groups || []).map((g) => {
     const rows = C.computeStandings(t, g);
     const adv = g.advance || 0;
@@ -142,7 +146,7 @@ function standingsTab(t) {
         </div>
         ${hasKo && adv ? `<p class="legend"><span class="legend-bar" aria-hidden="true"></span>Top ${adv} go through to the knockouts</p>` : ""}
       </section>`;
-  }).join("");
+  }).join("") + rules;
 }
 
 function bracketMatch(t, m) {
