@@ -710,3 +710,13 @@ th { white-space: nowrap; }
 @media (max-width: 560px) {
   .signup-cta .btn { width: 100%; }
 }
+
+/* Phones: stack bracket rounds vertically instead of scrolling sideways */
+@media (max-width: 640px) {
+  .bracket-scroll { overflow: visible; margin: 0; padding: 0; }
+  .bracket { grid-template-columns: 1fr; gap: 24px; min-width: 0; }
+  .b-round-matches { gap: 10px; }
+  .b-round:not(:last-child) .b-match::after { display: none; }
+  .b-round + .b-round { padding-top: 20px; border-top: 1px solid var(--line); }
+  .third-place { max-width: none; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+}
