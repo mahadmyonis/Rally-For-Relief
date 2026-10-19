@@ -3,6 +3,7 @@
 import { store } from "./store.js";
 import * as C from "./tournament-core.js";
 import { esc, formatDate, formatTime, statusChip, query, safeUrl, signupsOpen } from "./ui.js";
+import { openShare, shareButton } from "./share.js";
 
 const view = document.getElementById("view");
 const id = query("t");
@@ -211,7 +212,7 @@ function renderTournament(t) {
     ${demoNote()}
     ${!t.published ? `<p class="notice">👀 Preview — this tournament is hidden, so it isn't listed on the site yet. Turn on <strong>Show on public site</strong> in the organiser app to publish it.</p>` : ""}
     <header class="t-hero">
-      <div>${statusChip(t.status)}</div>
+      <div class="t-hero-top">${statusChip(t.status)}${t.published ? shareButton() : ""}</div>
       <h1 class="section-title">${esc(t.name)}</h1>
       <p class="t-meta">
         ${t.date ? `<span>📅 ${esc(formatDate(t.date))}</span>` : ""}
@@ -254,6 +255,9 @@ function renderTournament(t) {
     <div class="tab-panel" role="tabpanel">${body}</div>
     <p class="updated">Updates automatically — no need to refresh.</p>
   `;
+
+  const shareBtn = view.querySelector("[data-share]");
+  if (shareBtn) shareBtn.addEventListener("click", () => openShare(current));
 
   view.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => {
     tab = b.dataset.tab;

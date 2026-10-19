@@ -4,6 +4,7 @@
 import { store, DELETE } from "./store.js";
 import * as C from "./tournament-core.js";
 import { esc, formatDate, formatTime, statusChip, query, safeUrl, money } from "./ui.js";
+import { openShare, shareButton } from "./share.js";
 
 const view = document.getElementById("view");
 const userBox = document.getElementById("admin-user");
@@ -261,6 +262,7 @@ function render() {
               ${["upcoming", "live", "finished"].map((s) => `<option value="${s}" ${t.status === s ? "selected" : ""}>${s[0].toUpperCase() + s.slice(1)}</option>`).join("")}
             </select>
           </label>
+          ${shareButton()}
           <a class="btn btn-ghost btn-sm" href="../tournaments/?t=${encodeURIComponent(id)}${t.published ? "" : "&preview=1"}" target="_blank" rel="noopener">${t.published ? "View public page" : "Preview public page"} ↗</a>
         </div>
       </div>
@@ -282,6 +284,10 @@ function render() {
     stickyIds.clear();
     render();
   }));
+  view.querySelector("[data-share]").addEventListener("click", () => {
+    if (!t.published) return toast("Turn on Show on public site in Settings first, so the link works for everyone.", "error");
+    openShare({ id, ...t });
+  });
   view.querySelector("#quick-status").addEventListener("change", (e) => save({ status: e.target.value }, "Status updated"));
 
   const panel = view.querySelector("#panel");

@@ -50,6 +50,10 @@ Scores count as goals, points or sets, whatever suits the sport. For volleyball,
 - **Team sign-ups:** in a tournament's **Settings**, paste your sign-up form link (e.g. a Google Form) and tick **Sign-ups are open**. A "Sign up your team" button then appears on the home page ticket and on the tournament page. Untick it to close sign-ups. Sign-ups also close automatically when the tournament is set to Finished.
 - **Donations:** on the organiser dashboard, fill in **Donations**: the campaign name, the donation link (e.g. LaunchGood), a short description, the amount raised and the goal. Then tick **Show on the website**. The home page gets a donation section with a progress bar, plus "Donate" links in the menu and footer. Update "Raised so far" whenever you like.
 
+### Sharing
+
+Every published tournament page, and the organiser app, has a **Share** button. It opens a ready-made message that changes with the tournament: sign-ups while it's upcoming, "LIVE" while games are on, and the champions once it's finished. The message can be edited, then shared through the phone's share menu or WhatsApp, or copied as a message or a link.
+
 ### How the standings are worked out
 
 - Only games marked **Final** count. Live games don't change the table until they're finished.
