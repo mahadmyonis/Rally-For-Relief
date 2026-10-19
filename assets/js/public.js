@@ -6,6 +6,8 @@ import { esc, formatDate, formatTime, statusChip, query, safeUrl, signupsOpen } 
 
 const view = document.getElementById("view");
 const id = query("t");
+// Organisers can check a hidden tournament with ?preview=1 before publishing
+const preview = query("preview") === "1";
 let current = null;
 let tab = (location.hash || "").slice(1);
 let teamFilter = "";
@@ -181,7 +183,7 @@ function bracketTab(t) {
 }
 
 function renderTournament(t) {
-  if (!t || !t.published) {
+  if (!t || (!t.published && !preview)) {
     view.innerHTML = `<div class="empty"><h1>Tournament not found</h1><p>It may have been removed or isn't public yet.</p><p><a class="btn btn-ghost" href="./">See all tournaments</a></p></div>`;
     return;
   }
@@ -207,6 +209,7 @@ function renderTournament(t) {
   view.innerHTML = `
     <a class="back-link" href="./">← All tournaments</a>
     ${demoNote()}
+    ${!t.published ? `<p class="notice">👀 Preview — this tournament is hidden, so it isn't listed on the site yet. Turn on <strong>Show on public site</strong> in the organiser app to publish it.</p>` : ""}
     <header class="t-hero">
       <div>${statusChip(t.status)}</div>
       <h1 class="section-title">${esc(t.name)}</h1>

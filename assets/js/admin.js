@@ -14,6 +14,9 @@ let user = null;
 let current = null;
 let tab = sessionStorageGet("r4r-admin-tab") || "";
 let scoreFilter = "open";
+// Games just marked final stay put on the "To play" list (so the next card
+// doesn't slide under a finger) until the filter or tab changes.
+const stickyIds = new Set();
 let pendingRender = false;
 let unwatch = null;
 
@@ -258,10 +261,11 @@ function render() {
               ${["upcoming", "live", "finished"].map((s) => `<option value="${s}" ${t.status === s ? "selected" : ""}>${s[0].toUpperCase() + s.slice(1)}</option>`).join("")}
             </select>
           </label>
-          <a class="btn btn-ghost btn-sm" href="../tournaments/?t=${encodeURIComponent(id)}" target="_blank" rel="noopener">View public page ↗</a>
+          <a class="btn btn-ghost btn-sm" href="../tournaments/?t=${encodeURIComponent(id)}${t.published ? "" : "&preview=1"}" target="_blank" rel="noopener">${t.published ? "View public page" : "Preview public page"} ↗</a>
         </div>
       </div>
-      ${t.published ? "" : `<p class="notice">This tournament is hidden from the public site. Turn on <strong>Show on public site</strong> in Settings when you're ready.</p>`}
+      ${t.published ? "" : `<p class="notice">This tournament is hidden from the public site. Turn on <strong>Show on public site</strong> in Settings when you're ready. Use <strong>Preview public page</strong> to check it first.</p>`}
+      ${C.champion(t) ? `<div class="admin-champion">🏆 Champions: <strong>${esc(C.teamName(t, C.champion(t)))}</strong></div>` : ""}
     </header>
 
     <div class="tabs-bar">
@@ -275,6 +279,7 @@ function render() {
   view.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => {
     tab = b.dataset.tab;
     sessionStorageSet("r4r-admin-tab", tab);
+    stickyIds.clear();
     render();
   }));
   view.querySelector("#quick-status").addEventListener("change", (e) => save({ status: e.target.value }, "Status updated"));
@@ -299,7 +304,8 @@ function renderScores(t, panel) {
     live: all.filter((m) => m.status === "live").length,
     all: all.length
   };
-  const list = all.filter((m) => scoreFilter === "all" || (scoreFilter === "live" ? m.status === "live" : m.status !== "final"));
+  const list = all.filter((m) => scoreFilter === "all" || stickyIds.has(m.id) ||
+    (scoreFilter === "live" ? m.status === "live" : m.status !== "final"));
   const draws = (t.settings || {}).allowDraws !== false;
 
   panel.innerHTML = `
@@ -313,12 +319,15 @@ function renderScores(t, panel) {
         const homeId = C.resolveSource(t, m.home);
         const awayId = C.resolveSource(t, m.away);
         const ready = homeId && awayId;
+        const locked = m.status === "final";
+        const editable = ready && !locked;
+        const win = C.winnerSide(m);
         const num = (side) => {
           const v = m[side];
           return `<div class="stepper">
-            <button type="button" class="step" data-step="-1" data-side="${side}" aria-label="Minus one" ${ready ? "" : "disabled"}>−</button>
-            <input type="number" inputmode="numeric" min="0" class="score-input" data-side="${side}" value="${Number.isFinite(v) ? v : ""}" placeholder="–" aria-label="Score" ${ready ? "" : "disabled"}>
-            <button type="button" class="step" data-step="1" data-side="${side}" aria-label="Plus one" ${ready ? "" : "disabled"}>+</button>
+            <button type="button" class="step" data-step="-1" data-side="${side}" aria-label="Minus one" ${editable ? "" : "disabled"}>−</button>
+            <input type="number" inputmode="numeric" min="0" class="score-input" data-side="${side}" value="${Number.isFinite(v) ? v : ""}" placeholder="–" aria-label="Score" ${editable ? "" : "disabled"}>
+            <button type="button" class="step" data-step="1" data-side="${side}" aria-label="Plus one" ${editable ? "" : "disabled"}>+</button>
           </div>`;
         };
         return `
@@ -331,16 +340,21 @@ function renderScores(t, panel) {
               </div>
             </header>
             <div class="score-body">
-              <div class="score-team ${homeId ? "" : "is-tbd"}">${esc(C.sourceLabel(t, m.home))}</div>
+              <div class="score-team ${homeId ? "" : "is-tbd"} ${win === "home" ? "is-winner" : ""}">${win === "home" ? "🏆 " : ""}${esc(C.sourceLabel(t, m.home))}</div>
               ${num("hs")}
               <span class="score-sep">vs</span>
               ${num("as")}
-              <div class="score-team right ${awayId ? "" : "is-tbd"}">${esc(C.sourceLabel(t, m.away))}</div>
+              <div class="score-team right ${awayId ? "" : "is-tbd"} ${win === "away" ? "is-winner" : ""}">${esc(C.sourceLabel(t, m.away))}${win === "away" ? " 🏆" : ""}</div>
             </div>
+            ${locked ? `
+            <footer class="final-bar">
+              <span class="final-tag">✓ Final</span>
+              <button type="button" class="btn btn-ghost btn-sm" data-edit>Edit result</button>
+            </footer>` : `
             <footer class="status-switch" role="group" aria-label="Game status">
               ${[["scheduled", "Not started"], ["live", "Live"], ["final", "Final"]].map(([s, label]) =>
                 `<button type="button" class="seg ${m.status === s ? "is-active" : ""}" data-status="${s}" ${ready ? "" : "disabled"}>${label}</button>`).join("")}
-            </footer>
+            </footer>`}
             ${ready ? "" : `<p class="muted-sm">Teams are decided once earlier games finish.</p>`}
           </article>`;
       }).join("")}
@@ -350,6 +364,7 @@ function renderScores(t, panel) {
 
   panel.querySelectorAll("[data-filter]").forEach((b) => b.addEventListener("click", () => {
     scoreFilter = b.dataset.filter;
+    stickyIds.clear();
     render();
   }));
 
@@ -359,6 +374,7 @@ function renderScores(t, panel) {
     const inputs = { hs: card.querySelector('.score-input[data-side="hs"]'), as: card.querySelector('.score-input[data-side="as"]') };
 
     const commitScore = (side, value) => {
+      if (m.status === "final") return;
       const n = value === "" ? null : Math.max(0, Math.floor(Number(value)));
       if (n !== null && !Number.isFinite(n)) return;
       const patch = { [`matches.${mid}.${side}`]: n };
@@ -377,11 +393,33 @@ function renderScores(t, panel) {
     Object.values(inputs).forEach((inp) => inp.addEventListener("change", () => commitScore(inp.dataset.side, inp.value.trim())));
     card.querySelectorAll(".step").forEach((b) => b.addEventListener("click", () => {
       const side = b.dataset.side;
+      const delta = Number(b.dataset.step);
+      // Show the change straight away; the saved value arrives a moment later
       const cur = Number.isFinite(m[side]) ? m[side] : 0;
-      const next = Math.max(0, cur + Number(b.dataset.step));
-      inputs[side].value = next;
-      commitScore(side, String(next));
+      m[side] = Math.max(0, cur + delta);
+      inputs[side].value = m[side];
+      const other = side === "hs" ? "as" : "hs";
+      if (!Number.isFinite(m[other])) { m[other] = 0; inputs[other].value = 0; }
+      if (m.status === "scheduled") m.status = "live";
+      store.adjustScore(id, mid, side, delta).catch((err) => toast(friendlyError(err), "error"));
     }));
+
+    const editBtn = card.querySelector("[data-edit]");
+    if (editBtn) editBtn.addEventListener("click", () => {
+      const started = C.dependentMatches(t, mid).filter((x) => t.matches[x] && t.matches[x].status !== "scheduled");
+      const names = started.map((x) => `${C.stageLabel(t, { id: x, ...t.matches[x] })}: ${C.sourceLabel(t, t.matches[x].home)} vs ${C.sourceLabel(t, t.matches[x].away)}`);
+      const msg = started.length
+        ? `Change this result?\n\nThese later games depend on it and have already started:\n• ${names.join("\n• ")}\n\nThey'll be reset to "Not started" and their scores cleared, because the teams in them could change.`
+        : "Change this result? The game will reopen as Live so you can fix the score, then tap Final again.";
+      if (!confirm(msg)) return;
+      const patch = { [`matches.${mid}.status`]: "live" };
+      started.forEach((x) => {
+        patch[`matches.${x}.status`] = "scheduled";
+        patch[`matches.${x}.hs`] = null;
+        patch[`matches.${x}.as`] = null;
+      });
+      save(patch, started.length ? `Game reopened — ${started.length} later game${started.length === 1 ? "" : "s"} reset` : "Game reopened — fix the score, then tap Final");
+    });
 
     card.querySelectorAll("[data-field]").forEach((inp) => inp.addEventListener("change", () => {
       save({ [`matches.${mid}.${inp.dataset.field}`]: inp.value.trim() }, "");
@@ -397,6 +435,11 @@ function renderScores(t, panel) {
       }
       const patch = { [`matches.${mid}.status`]: s };
       if (s === "scheduled") { patch[`matches.${mid}.hs`] = null; patch[`matches.${mid}.as`] = null; }
+      if (s === "live") {
+        if (!Number.isFinite(hs)) patch[`matches.${mid}.hs`] = 0;
+        if (!Number.isFinite(as)) patch[`matches.${mid}.as`] = 0;
+      }
+      if (s === "final" && scoreFilter !== "all") stickyIds.add(mid);
       if (s === "scheduled" && (Number.isFinite(hs) || Number.isFinite(as)) && !confirm("Reset this game? The score will be cleared.")) return;
       // Kick off the tournament automatically when the first game goes live
       if (s === "live" && t.status === "upcoming") patch.status = "live";

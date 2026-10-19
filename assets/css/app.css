@@ -720,3 +720,24 @@ th { white-space: nowrap; }
   .b-round + .b-round { padding-top: 20px; border-top: 1px solid var(--line); }
   .third-place { max-width: none; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
 }
+
+/* Finished games are locked until "Edit result" */
+.final-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+}
+.final-tag { font-weight: 700; color: var(--gold); font-size: 15px; }
+.score-team.is-winner { color: var(--gold); }
+.admin-champion {
+  margin-top: 16px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: var(--gold);
+  color: var(--black);
+  font-weight: 600;
+}

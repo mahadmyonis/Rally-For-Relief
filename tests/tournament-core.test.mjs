@@ -304,3 +304,20 @@ test("groups → bracket: the right teams go through once each group finishes", 
   // Winners play the other group's runner-up
   assert.deepEqual(names.map((p) => p.sort().join(" v ")).sort(), ["A1 v B2", "A2 v B1"]);
 });
+
+test("dependent games: a group game feeds the whole bracket; a semi feeds the final and third place", () => {
+  const t = makeTournament(["A1", "A2", "A3", "B1", "B2", "B3"]);
+  t.groups = [
+    { id: "gA", name: "Group A", teamIds: ["t0", "t1", "t2"], advance: 2 },
+    { id: "gB", name: "Group B", teamIds: ["t3", "t4", "t5"], advance: 2 }
+  ];
+  t.groups.forEach((g) => Object.assign(t.matches, C.groupMatches(g)));
+  Object.assign(t.matches, C.buildKnockout(C.seedsFromGroups(t.groups, 2), { thirdPlace: true }));
+  const ko = C.knockoutRounds(t);
+  const groupGame = C.matchList(t).find((m) => m.group === "gA");
+  // Group A feeds both semis (A1 and A2 are in different semis), so everything after them too
+  assert.equal(C.dependentMatches(t, groupGame.id).length, 4);
+  const semi = ko.rounds[0].matches[0];
+  assert.deepEqual(C.dependentMatches(t, semi.id).sort(), [ko.rounds[1].matches[0].id, ko.third.id].sort());
+  assert.deepEqual(C.dependentMatches(t, ko.rounds[1].matches[0].id), []);
+});

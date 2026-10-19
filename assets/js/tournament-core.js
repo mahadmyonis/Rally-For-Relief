@@ -359,3 +359,28 @@ export function champion(t) {
   }
   return null;
 }
+
+// Every later game whose teams depend on this game's result: knockout games
+// fed by its group (for a group game) or by its winner/loser, and so on down.
+export function dependentMatches(t, matchId) {
+  const m = t.matches && t.matches[matchId];
+  if (!m) return [];
+  const all = matchList(t);
+  const feeds = (src, id, group) =>
+    src && ((src.t === "winner" || src.t === "loser") ? src.m === id : group !== undefined && src.t === "group" && src.g === group);
+  const out = new Set();
+  const queue = [];
+  all.forEach((x) => {
+    if (m.stage === "group" ? (feeds(x.home, null, m.group) || feeds(x.away, null, m.group))
+                            : (feeds(x.home, matchId) || feeds(x.away, matchId))) {
+      if (!out.has(x.id)) { out.add(x.id); queue.push(x.id); }
+    }
+  });
+  while (queue.length) {
+    const id = queue.shift();
+    all.forEach((x) => {
+      if ((feeds(x.home, id) || feeds(x.away, id)) && !out.has(x.id)) { out.add(x.id); queue.push(x.id); }
+    });
+  }
+  return [...out];
+}

@@ -9,6 +9,7 @@
 //   createTournament(data)     → id
 //   updateTournament(id, patch) patch keys may be dotted, e.g. "matches.m1.hs"
 //   deleteTournament(id)
+//   adjustScore(id, matchId, side, delta)  +1/−1 safely when several people score at once
 //   watchSite(cb)              live site-wide settings (donations) → unsubscribe()
 //   updateSite(patch)          merge into site-wide settings
 //   onAuth(cb)                 cb(user | null) → unsubscribe()
@@ -27,6 +28,23 @@ function setPath(obj, path, value) {
   }
   if (value === DELETE) delete o[keys[keys.length - 1]];
   else o[keys[keys.length - 1]] = value;
+}
+
+// Shared rule for a + / − tap: never below 0, and the first tap on a game that
+// hasn't started makes it live at 0–0 (and the tournament live too).
+// Returns the patch to apply, or null if the game is finished.
+function scorePatch(t, matchId, side, delta) {
+  const m = t.matches && t.matches[matchId];
+  if (!m || m.status === "final") return null;
+  const other = side === "hs" ? "as" : "hs";
+  const cur = Number.isFinite(m[side]) ? m[side] : 0;
+  const patch = { [`matches.${matchId}.${side}`]: Math.max(0, cur + delta) };
+  if (!Number.isFinite(m[other])) patch[`matches.${matchId}.${other}`] = 0;
+  if (m.status === "scheduled") {
+    patch[`matches.${matchId}.status`] = "live";
+    if (t.status === "upcoming") patch.status = "live";
+  }
+  return patch;
 }
 
 // Marker for removing a field in a patch
@@ -71,6 +89,17 @@ async function firebaseStore() {
     },
     deleteTournament(id) {
       return fs.deleteDoc(fs.doc(db, "tournaments", id));
+    },
+    // A transaction re-reads the latest score, so simultaneous taps all count
+    adjustScore(id, matchId, side, delta) {
+      const ref = fs.doc(db, "tournaments", id);
+      return fs.runTransaction(db, async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists()) throw new Error("Tournament not found");
+        const patch = scorePatch(snap.data(), matchId, side, delta);
+        if (!patch) throw Object.assign(new Error("This game is final — tap Edit result to change it."), { code: "locked" });
+        tx.update(ref, { ...patch, updatedAt: Date.now() });
+      });
     },
     watchSite(cb) {
       return fs.onSnapshot(fs.doc(db, "site", "settings"), (d) => cb(d.exists() ? d.data() : {}),
@@ -140,6 +169,15 @@ function demoStore() {
     async deleteTournament(id) {
       const all = read();
       delete all[id];
+      write(all);
+    },
+    async adjustScore(id, matchId, side, delta) {
+      const all = read();
+      if (!all[id]) throw new Error("Tournament not found");
+      const patch = scorePatch(all[id], matchId, side, delta);
+      if (!patch) throw Object.assign(new Error("This game is final — tap Edit result to change it."), { code: "locked" });
+      for (const [k, v] of Object.entries(patch)) setPath(all[id], k, v);
+      all[id].updatedAt = Date.now();
       write(all);
     },
     watchSite(cb) {
