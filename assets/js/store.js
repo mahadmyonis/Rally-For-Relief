@@ -9,7 +9,7 @@
 //   createTournament(data)     → id
 //   updateTournament(id, patch) patch keys may be dotted, e.g. "matches.m1.hs"
 //   deleteTournament(id)
-//   adjustScore(id, matchId, side, delta)  +1/−1 safely when several people score at once
+//   adjustScore(id, matchId, side, delta, t)  +1/−1 safely when several people score at once
 //   watchSite(cb)              live site-wide settings (donations) → unsubscribe()
 //   updateSite(patch)          merge into site-wide settings
 //   onAuth(cb)                 cb(user | null) → unsubscribe()
@@ -90,16 +90,16 @@ async function firebaseStore() {
     deleteTournament(id) {
       return fs.deleteDoc(fs.doc(db, "tournaments", id));
     },
-    // A transaction re-reads the latest score, so simultaneous taps all count
-    adjustScore(id, matchId, side, delta) {
-      const ref = fs.doc(db, "tournaments", id);
-      return fs.runTransaction(db, async (tx) => {
-        const snap = await tx.get(ref);
-        if (!snap.exists()) throw new Error("Tournament not found");
-        const patch = scorePatch(snap.data(), matchId, side, delta);
-        if (!patch) throw Object.assign(new Error("This game is final — tap Edit result to change it."), { code: "locked" });
-        tx.update(ref, { ...patch, updatedAt: Date.now() });
-      });
+    // increment() is applied on the server, so simultaneous taps all count,
+    // and Firestore shows the change on this phone straight away
+    adjustScore(id, matchId, side, delta, t) {
+      const patch = scorePatch(t, matchId, side, delta);
+      if (!patch) return Promise.reject(Object.assign(new Error("This game is final — tap Edit result to change it."), { code: "locked" }));
+      const m = t.matches[matchId];
+      const key = `matches.${matchId}.${side}`;
+      // −1 only when there's something to take away (the UI never shows below 0)
+      if (Number.isFinite(m[side])) patch[key] = fs.increment(delta);
+      return fs.updateDoc(fs.doc(db, "tournaments", id), { ...patch, updatedAt: Date.now() });
     },
     watchSite(cb) {
       return fs.onSnapshot(fs.doc(db, "site", "settings"), (d) => cb(d.exists() ? d.data() : {}),

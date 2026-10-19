@@ -384,3 +384,68 @@ export function dependentMatches(t, matchId) {
   }
   return [...out];
 }
+
+// --- Rounds, results and match-day helpers ----------------------------------------
+
+// Columns for a bracket-style view: group rounds first, then each knockout
+// round (the third-place game sits with the final). Byes are left out.
+export function roundColumns(t) {
+  const list = scheduleList(t);
+  const cols = [];
+  const byKey = new Map();
+  const add = (key, title, stage, m) => {
+    if (!byKey.has(key)) { const c = { key, title, stage, matches: [] }; byKey.set(key, c); cols.push(c); }
+    byKey.get(key).matches.push(m);
+  };
+  const groupIndex = {};
+  (t.groups || []).forEach((g, i) => { groupIndex[g.id] = i; });
+  list.filter((m) => m.stage === "group").sort((a, b) => a.round - b.round).forEach((m) => add(`g${m.round}`, `Round ${m.round}`, "group", m));
+  list.filter((m) => m.stage === "ko").sort((a, b) => a.round - b.round || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot)
+    .forEach((m) => add(`k${m.round}`, roundName(m.rounds || m.round, m.round), "ko", m));
+  const timeSort = (a, b) => (a.time && b.time && a.time !== b.time ? a.time.localeCompare(b.time) : 0) ||
+    (a.stage === "group" ? (groupIndex[a.group] ?? 0) - (groupIndex[b.group] ?? 0) : 0) ||
+    (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot;
+  cols.forEach((c) => c.matches.sort(timeSort));
+  return cols;
+}
+
+// Sets needed to win a best-of-N game (0 = free scoring)
+export function setsToWin(t) {
+  const n = Number((t.settings || {}).bestOf) || 0;
+  return n > 0 ? Math.ceil(n / 2) : 0;
+}
+
+// Why a score can't be saved as final, or null if it's fine
+export function resultProblem(t, m, hs, as) {
+  if (!Number.isInteger(hs) || !Number.isInteger(as) || hs < 0 || as < 0) return "Enter both scores first.";
+  const need = setsToWin(t);
+  if (need) {
+    const hi = Math.max(hs, as), lo = Math.min(hs, as);
+    if (hi !== need || lo >= need) return `In best of ${t.settings.bestOf}, the winner needs exactly ${need} sets (e.g. ${need}–${need - 1}).`;
+    return null;
+  }
+  if (hs === as) {
+    if (m.stage === "ko") return "Knockout games need a winner — scores can't be tied.";
+    if ((t.settings || {}).allowDraws === false) return "Draws are turned off for this tournament.";
+  }
+  return null;
+}
+
+// One-tap results for set-based scoring, e.g. best of 3 → 2–0, 2–1, 1–2, 0–2
+export function quickResults(t) {
+  const need = setsToWin(t);
+  if (!need) return [];
+  const out = [];
+  for (let lo = 0; lo < need; lo++) out.push([need, lo]);
+  for (let lo = need - 1; lo >= 0; lo--) out.push([lo, need]);
+  return out;
+}
+
+// The next game still to finish, preferring the same court, in play order
+export function nextGame(t, afterId, court) {
+  const list = scheduleList(t);
+  const from = Math.max(0, list.findIndex((m) => m.id === afterId) + 1);
+  const ordered = list.slice(from).concat(list.slice(0, from));
+  const ready = (m) => m.id !== afterId && m.status !== "final" && resolveSource(t, m.home) && resolveSource(t, m.away);
+  return (court && ordered.find((m) => ready(m) && m.court === court)) || ordered.find(ready) || null;
+}

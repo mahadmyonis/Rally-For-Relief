@@ -43,7 +43,11 @@ Logo files live in `assets/`: `logo.png` (full lockup), `logo-mark.png` (R4R onl
 - **Public page:** `rally4relief.com/tournaments/` lists every published tournament. Each one has live games, group standings and the bracket. Visitors can pick a team to follow, and the page updates by itself, with no refresh needed.
 - **Organiser app:** `rally4relief.com/admin/` (also linked as "Organiser login" in the footer). Create a tournament, add teams, pick a format (groups, a bracket, or groups then a bracket) and enter scores from your phone during games.
 
-Scores count as goals, points or sets, whatever suits the sport. For volleyball, enter the sets each team won, e.g. 2–1. Win, draw and loss points can be changed per tournament under **Settings**.
+Scores count as goals, points or sets, whatever suits the sport. Under **Settings → Scoring**, choose "Points or goals" or "Sets: best of 1, 3 or 5". With sets, scorers get one-tap results (2–0, 2–1…) and impossible scores are refused. Win, draw and loss points can also be changed per tournament.
+
+**Scoring on match day:** the **Scores** tab lists every game by round, with a progress bar, filters (To play / Live / Done) and a court filter. Tap a game to open its scoreboard: **Start game**, then use the big **+ / −** buttons or a quick result, then **Save final score**. After that, **Next game** jumps straight to the next game on the same court.
+
+**What visitors see:** the **Games** tab lays rounds out side by side like a bracket (Round 1 → … → Final), opening on the round being played. Each group's standings come with a results grid showing who beat whom. Following a team switches the view to that team's games, with their next one at the top.
 
 ### Sign-ups and donations
 

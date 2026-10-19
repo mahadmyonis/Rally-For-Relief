@@ -12,6 +12,39 @@ const preview = query("preview") === "1";
 let current = null;
 let tab = (location.hash || "").slice(1);
 let teamFilter = "";
+// Horizontal position in the round columns; null until the first render
+let roundsLeft = null;
+
+function wireRounds() {
+  const scroller = view.querySelector(".rounds-scroll");
+  if (!scroller) { roundsLeft = null; return; }
+  const cols = [...scroller.querySelectorAll(".rcol")];
+  const chips = [...view.querySelectorAll(".rnav")];
+  const colLeft = (i) => cols[i].offsetLeft - cols[0].offsetLeft;
+  // First visit: jump to the round being played; after that, stay put
+  scroller.scrollLeft = roundsLeft ?? colLeft(Number(scroller.dataset.current) || 0);
+  const mark = () => {
+    const x = scroller.scrollLeft + 24;
+    let idx = 0;
+    cols.forEach((c, i) => { if (colLeft(i) <= x) idx = i; });
+    chips.forEach((ch, i) => ch.classList.toggle("is-active", i === idx));
+    // Keep the active round's chip visible in the chip row
+    const nav = view.querySelector(".rounds-nav");
+    const chip = chips[idx];
+    if (nav && chip) {
+      const l = chip.offsetLeft - nav.offsetLeft, r = l + chip.offsetWidth;
+      if (l < nav.scrollLeft) nav.scrollLeft = l - 8;
+      else if (r > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = r - nav.clientWidth + 8;
+    }
+    roundsLeft = scroller.scrollLeft;
+  };
+  let raf = 0;
+  scroller.addEventListener("scroll", () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(mark); }, { passive: true });
+  chips.forEach((ch, i) => ch.addEventListener("click", () => {
+    scroller.scrollTo({ left: colLeft(i), behavior: "smooth" });
+  }));
+  mark();
+}
 
 function demoNote() {
   return store.mode === "demo"
@@ -86,31 +119,101 @@ function matchCard(t, m) {
     </article>`;
 }
 
+// Compact game tile used in the round columns
+function gameTile(t, m) {
+  const win = C.winnerSide(m);
+  const g = m.stage === "group" ? ((t.groups || []).find((x) => x.id === m.group) || {}).name : (m.third ? "3rd place" : "");
+  const meta = [m.time ? formatTime(m.time) : "", m.court].filter(Boolean).map(esc).join(" · ");
+  const side = (s) => {
+    const tid = C.resolveSource(t, m[s]);
+    const v = m[s === "home" ? "hs" : "as"];
+    const score = m.status !== "scheduled" && Number.isFinite(v) ? v : "";
+    return `<div class="gt-team ${win === s ? "is-winner" : win ? "is-loser" : ""} ${tid ? "" : "is-tbd"} ${teamFilter && tid === teamFilter ? "is-mine" : ""}">
+      <span class="gt-name">${esc(C.sourceLabel(t, m[s]))}</span><span class="gt-score">${score}</span></div>`;
+  };
+  return `
+    <article class="gtile status-${m.status}">
+      <header class="gt-head">
+        ${g ? `<span class="gt-tag">${esc(g)}</span>` : ""}
+        <span class="gt-meta">${meta}</span>
+        ${m.status === "live" ? `<span class="gt-live"><span class="live-dot" aria-hidden="true"></span>Live</span>` : m.status === "final" ? `<span class="gt-final">FT</span>` : ""}
+      </header>
+      ${side("home")}${side("away")}
+    </article>`;
+}
+
 function matchesTab(t) {
-  const list = C.scheduleList(t).filter((m) => {
-    if (!teamFilter) return true;
-    return [C.resolveSource(t, m.home), C.resolveSource(t, m.away)].includes(teamFilter);
-  });
-  if (!list.length) {
-    return `<div class="empty"><h2>${teamFilter ? "No games for this team yet" : "Schedule coming soon"}</h2><p>Check back closer to the day.</p></div>`;
+  const mine = (m) => [C.resolveSource(t, m.home), C.resolveSource(t, m.away)].includes(teamFilter);
+  // Following a team: just their games, in order, with the next one first
+  if (teamFilter) {
+    const list = C.scheduleList(t).filter(mine);
+    if (!list.length) return `<div class="empty"><h2>No games for this team yet</h2><p>Check back closer to the day.</p></div>`;
+    const next = list.find((m) => m.status !== "final");
+    return `
+      ${next ? `<section class="up-next"><h3 class="round-title">${next.status === "live" ? "Playing now" : "Up next"}</h3>${matchCard(t, next)}</section>` : ""}
+      <section class="round-block">
+        <h3 class="round-title">All their games</h3>
+        <div class="match-grid">${list.map((m) => matchCard(t, m)).join("")}</div>
+      </section>`;
   }
-  // Group into sections: group-stage rounds, then each knockout round
-  const sections = [];
-  const byKey = {};
-  list.forEach((m) => {
-    const key = m.stage === "group" ? `Round ${m.round}` : C.stageLabel(t, m);
-    if (!byKey[key]) { byKey[key] = []; sections.push(key); }
-    byKey[key].push(m);
-  });
-  const hasTimes = list.some((m) => m.time);
-  if (hasTimes) {
-    return `<div class="match-grid">${list.map((m) => matchCard(t, m)).join("")}</div>`;
+
+  const cols = C.roundColumns(t);
+  if (!cols.length) {
+    return `<div class="empty"><h2>Schedule coming soon</h2><p>Check back closer to the day.</p></div>`;
   }
-  return sections.map((key) => `
-    <section class="round-block">
-      <h3 class="round-title">${esc(key)}</h3>
-      <div class="match-grid">${byKey[key].map((m) => matchCard(t, m)).join("")}</div>
-    </section>`).join("");
+  const currentIdx = Math.max(0, cols.findIndex((c) => c.matches.some((m) => m.status !== "final")));
+  return `
+    <nav class="rounds-nav" aria-label="Rounds">
+      ${cols.map((c, i) => {
+        const done = c.matches.filter((m) => m.status === "final").length;
+        const live = c.matches.some((m) => m.status === "live");
+        return `<button type="button" class="rnav ${i === currentIdx ? "is-current" : ""}" data-col="${i}">
+          ${live ? `<span class="live-dot" aria-hidden="true"></span>` : done === c.matches.length ? "✓ " : ""}${esc(c.title)}</button>`;
+      }).join("")}
+    </nav>
+    <div class="rounds-scroll" data-current="${currentIdx}">
+      <div class="rounds">
+        ${cols.map((c, i) => {
+          const times = c.matches.map((m) => m.time).filter(Boolean).sort();
+          const done = c.matches.filter((m) => m.status === "final").length;
+          return `
+            <section class="rcol ${c.stage === "ko" ? "is-ko" : ""} ${i === currentIdx ? "is-current" : ""}" data-col="${i}">
+              <header class="rcol-head">
+                <h3>${esc(c.title)}</h3>
+                <p>${times.length ? esc(formatTime(times[0])) + (times.length > 1 && times[times.length - 1] !== times[0] ? `–${esc(formatTime(times[times.length - 1]))}` : "") + " · " : ""}${done}/${c.matches.length} played</p>
+              </header>
+              <div class="rcol-games">${c.matches.map((m) => gameTile(t, m)).join("")}</div>
+            </section>`;
+        }).join("")}
+      </div>
+    </div>
+    <p class="swipe-hint">Swipe across to see every round →</p>`;
+}
+
+// Who beat whom: rows and columns in standings order, scores from the row team's side
+function resultsGrid(t, g, rows) {
+  const games = C.matchList(t).filter((m) => m.stage === "group" && m.group === g.id);
+  const cell = (a, b) => {
+    if (a === b) return `<td class="mx-self" aria-hidden="true"></td>`;
+    const m = games.find((x) => (x.home.id === a && x.away.id === b) || (x.home.id === b && x.away.id === a));
+    if (!m || m.status === "scheduled" || !Number.isFinite(m.hs)) return `<td class="mx-empty">·</td>`;
+    const mine = m.home.id === a ? m.hs : m.as;
+    const theirs = m.home.id === a ? m.as : m.hs;
+    const cls = m.status === "live" ? "mx-live" : mine > theirs ? "mx-w" : mine < theirs ? "mx-l" : "mx-d";
+    return `<td class="${cls}">${mine}–${theirs}</td>`;
+  };
+  return `
+    <div class="matrix-wrap">
+      <p class="matrix-title">Results grid <span>— read across: each row's score first</span></p>
+      <div class="table-wrap">
+        <table class="matrix">
+          <thead><tr><th class="team"></th>${rows.map((r, i) => `<th class="num" title="${esc(r.name)}">${i + 1}</th>`).join("")}</tr></thead>
+          <tbody>${rows.map((r, i) => `
+            <tr class="${teamFilter === r.id ? "is-focus" : ""}"><th class="team"><span class="mx-n">${i + 1}</span>${esc(r.name)}</th>${rows.map((c) => cell(r.id, c.id)).join("")}</tr>`).join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 function standingsTab(t) {
@@ -148,6 +251,7 @@ function standingsTab(t) {
           </table>
         </div>
         ${hasKo && adv ? `<p class="legend"><span class="legend-bar" aria-hidden="true"></span>Top ${adv} go through to the knockouts</p>` : ""}
+        ${rows.length > 2 ? resultsGrid(t, g, rows) : ""}
       </section>`;
   }).join("") + rules;
 }
@@ -207,6 +311,9 @@ function renderTournament(t) {
   if (tab === "standings") body = standingsTab(t);
   if (tab === "bracket") body = bracketTab(t);
 
+  const prevScroll = view.querySelector(".rounds-scroll");
+  roundsLeft = prevScroll ? prevScroll.scrollLeft : roundsLeft;
+
   view.innerHTML = `
     <a class="back-link" href="./">← All tournaments</a>
     ${demoNote()}
@@ -255,6 +362,8 @@ function renderTournament(t) {
     <div class="tab-panel" role="tabpanel">${body}</div>
     <p class="updated">Updates automatically — no need to refresh.</p>
   `;
+
+  wireRounds();
 
   const shareBtn = view.querySelector("[data-share]");
   if (shareBtn) shareBtn.addEventListener("click", () => openShare(current));

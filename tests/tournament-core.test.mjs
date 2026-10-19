@@ -321,3 +321,57 @@ test("dependent games: a group game feeds the whole bracket; a semi feeds the fi
   assert.deepEqual(C.dependentMatches(t, semi.id).sort(), [ko.rounds[1].matches[0].id, ko.third.id].sort());
   assert.deepEqual(C.dependentMatches(t, ko.rounds[1].matches[0].id), []);
 });
+
+test("round columns: group rounds then knockout rounds, third place with the final, no byes", () => {
+  const t = makeTournament(["A", "B", "C", "D", "E", "F"]);
+  addGroups(t, 2, 2);
+  Object.assign(t.matches, C.buildKnockout(C.seedsFromGroups(t.groups, 2), { thirdPlace: true }));
+  const cols = C.roundColumns(t);
+  assert.deepEqual(cols.map((c) => c.title), ["Round 1", "Round 2", "Round 3", "Semi-finals", "Final"]);
+  assert.equal(cols.reduce((n, c) => n + c.matches.length, 0), C.scheduleList(t).length);
+  assert.equal(cols[4].matches.length, 2);
+  assert.ok(cols[4].matches[1].third, "third place after the final");
+
+  const k = makeTournament(["A", "B", "C"]);
+  Object.assign(k.matches, C.buildKnockout(Object.keys(k.teams).map((id) => ({ t: "team", id }))));
+  assert.deepEqual(C.roundColumns(k).map((c) => [c.title, c.matches.length]), [["Semi-finals", 1], ["Final", 1]]);
+});
+
+test("results: free scoring, draws and knockout ties", () => {
+  const t = makeTournament(["A", "B"]);
+  const g = { stage: "group" }, ko = { stage: "ko" };
+  assert.equal(C.resultProblem(t, g, 3, 1), null);
+  assert.equal(C.resultProblem(t, g, 1, 1), null, "draws allowed by default");
+  assert.match(C.resultProblem(t, ko, 1, 1), /winner/);
+  assert.match(C.resultProblem(t, g, null, 1), /both/);
+  t.settings.allowDraws = false;
+  assert.match(C.resultProblem(t, g, 2, 2), /Draws/);
+});
+
+test("results: best-of-3 and best-of-5 set scores", () => {
+  const t = makeTournament(["A", "B"], { bestOf: 3, allowDraws: false });
+  const g = { stage: "group" };
+  for (const [h, a] of [[2, 0], [2, 1], [1, 2], [0, 2]]) assert.equal(C.resultProblem(t, g, h, a), null, `${h}-${a}`);
+  for (const [h, a] of [[1, 0], [3, 0], [2, 2], [1, 1], [0, 0]]) assert.ok(C.resultProblem(t, g, h, a), `${h}-${a} rejected`);
+  assert.deepEqual(C.quickResults(t), [[2, 0], [2, 1], [1, 2], [0, 2]]);
+  t.settings.bestOf = 5;
+  assert.deepEqual(C.quickResults(t), [[3, 0], [3, 1], [3, 2], [2, 3], [1, 3], [0, 3]]);
+  assert.equal(C.resultProblem(t, g, 3, 2), null);
+  assert.ok(C.resultProblem(t, g, 2, 1));
+  t.settings.bestOf = 0;
+  assert.deepEqual(C.quickResults(t), []);
+});
+
+test("next game: same court first, skips finished and undecided games", () => {
+  const t = makeTournament(["A", "B", "C", "D"]);
+  addGroups(t, 1);
+  const list = C.scheduleList(t);
+  list.forEach((m, i) => { t.matches[m.id].court = i % 2 ? "Court 2" : "Court 1"; });
+  const first = list[0];
+  play(t, first.id, 1, 0);
+  const next = C.nextGame(t, first.id, "Court 1");
+  assert.equal(next.court, "Court 1");
+  assert.notEqual(next.id, first.id);
+  list.forEach((m) => play(t, m.id, 1, 0));
+  assert.equal(C.nextGame(t, first.id, "Court 1"), null);
+});

@@ -298,6 +298,20 @@ function render() {
 }
 
 // --- Scores --------------------------------------------------------------------
+// A compact match list grouped by round; tapping a game opens a scoreboard sheet.
+
+let courtFilter = sessionStorageGet("r4r-admin-court") || "";
+let sheetId = null;
+
+function courtsOf(t) {
+  return [...new Set(C.scheduleList(t).map((m) => m.court).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+}
+
+function groupName(t, m) {
+  const g = (t.groups || []).find((x) => x.id === m.group);
+  return g ? g.name : "";
+}
 
 function renderScores(t, panel) {
   const all = C.scheduleList(t);
@@ -305,67 +319,64 @@ function renderScores(t, panel) {
     panel.innerHTML = `<div class="empty"><h2>No games yet</h2><p>Add teams, then set up groups or a bracket in <strong>Format</strong>.</p></div>`;
     return;
   }
+  const courts = courtsOf(t);
+  if (courtFilter && !courts.includes(courtFilter)) courtFilter = "";
+  const onCourt = (m) => !courtFilter || m.court === courtFilter;
+  const scoped = all.filter(onCourt);
   const counts = {
-    open: all.filter((m) => m.status !== "final").length,
-    live: all.filter((m) => m.status === "live").length,
-    all: all.length
+    open: scoped.filter((m) => m.status !== "final").length,
+    live: scoped.filter((m) => m.status === "live").length,
+    done: scoped.filter((m) => m.status === "final").length,
+    all: scoped.length
   };
-  const list = all.filter((m) => scoreFilter === "all" || stickyIds.has(m.id) ||
-    (scoreFilter === "live" ? m.status === "live" : m.status !== "final"));
-  const draws = (t.settings || {}).allowDraws !== false;
+  const show = (m) => onCourt(m) && (scoreFilter === "all" || stickyIds.has(m.id) ||
+    (scoreFilter === "live" ? m.status === "live" : scoreFilter === "done" ? m.status === "final" : m.status !== "final"));
+  const doneAll = all.filter((m) => m.status === "final").length;
+  const cols = C.roundColumns(t).map((c) => ({ ...c, shown: c.matches.filter(show) })).filter((c) => c.shown.length);
+
+  const row = (m) => {
+    const win = C.winnerSide(m);
+    const hId = C.resolveSource(t, m.home), aId = C.resolveSource(t, m.away);
+    const sc = (v) => (m.status === "scheduled" || !Number.isFinite(v) ? "" : v);
+    const sub = [m.court, m.stage === "group" ? groupName(t, m) : (m.third ? "3rd place" : "")].filter(Boolean).join(" · ");
+    return `
+      <button type="button" class="mrow status-${m.status}" data-open="${esc(m.id)}">
+        <span class="mrow-when"><b>${m.time ? esc(formatTime(m.time)) : "—"}</b><small>${esc(sub)}</small></span>
+        <span class="mrow-teams">
+          <span class="mrow-team ${win === "home" ? "is-winner" : win ? "is-loser" : ""} ${hId ? "" : "is-tbd"}"><span class="nm">${esc(C.sourceLabel(t, m.home))}</span><span class="sc">${sc(m.hs)}</span></span>
+          <span class="mrow-team ${win === "away" ? "is-winner" : win ? "is-loser" : ""} ${aId ? "" : "is-tbd"}"><span class="nm">${esc(C.sourceLabel(t, m.away))}</span><span class="sc">${sc(m.as)}</span></span>
+        </span>
+        <span class="mrow-state" aria-hidden="true">${m.status === "live" ? `<span class="live-dot"></span>` : m.status === "final" ? "✓" : "›"}</span>
+      </button>`;
+  };
 
   panel.innerHTML = `
-    <div class="filter-row" role="group" aria-label="Show games">
-      ${[["open", "To play"], ["live", "Live"], ["all", "All"]].map(([k, label]) =>
-        `<button class="pill-btn ${scoreFilter === k ? "is-active" : ""}" data-filter="${k}">${label} <span>${counts[k]}</span></button>`).join("")}
+    <div class="score-top">
+      <div class="progress-wrap">
+        <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${all.length}" aria-valuenow="${doneAll}" aria-label="Games finished"><span style="width:${(doneAll / all.length) * 100}%"></span></div>
+        <p class="progress-text"><b>${doneAll}</b> of ${all.length} games done${counts.live ? ` · <span class="gold">${counts.live} live</span>` : ""}</p>
+      </div>
+      <div class="score-filters">
+        <div class="filter-row" role="group" aria-label="Show games">
+          ${[["open", "To play"], ["live", "Live"], ["done", "Done"], ["all", "All"]].map(([k, label]) =>
+            `<button class="pill-btn ${scoreFilter === k ? "is-active" : ""}" data-filter="${k}">${label} <span>${counts[k]}</span></button>`).join("")}
+        </div>
+        ${courts.length > 1 ? `
+          <label class="court-pick"><span class="sr-only">Court</span>
+            <select id="court-filter">
+              <option value="">All courts</option>
+              ${courts.map((c) => `<option value="${esc(c)}" ${c === courtFilter ? "selected" : ""}>${esc(c)}</option>`).join("")}
+            </select>
+          </label>` : ""}
+      </div>
     </div>
-    ${list.length ? "" : `<p class="muted-sm">Nothing here — ${scoreFilter === "live" ? "no games are live right now" : "every game is finished"}.</p>`}
-    <div class="score-list">
-      ${list.map((m) => {
-        const homeId = C.resolveSource(t, m.home);
-        const awayId = C.resolveSource(t, m.away);
-        const ready = homeId && awayId;
-        const locked = m.status === "final";
-        const editable = ready && !locked;
-        const win = C.winnerSide(m);
-        const num = (side) => {
-          const v = m[side];
-          return `<div class="stepper">
-            <button type="button" class="step" data-step="-1" data-side="${side}" aria-label="Minus one" ${editable ? "" : "disabled"}>−</button>
-            <input type="number" inputmode="numeric" min="0" class="score-input" data-side="${side}" value="${Number.isFinite(v) ? v : ""}" placeholder="–" aria-label="Score" ${editable ? "" : "disabled"}>
-            <button type="button" class="step" data-step="1" data-side="${side}" aria-label="Plus one" ${editable ? "" : "disabled"}>+</button>
-          </div>`;
-        };
-        return `
-          <article class="score-card status-${m.status}" data-id="${esc(m.id)}">
-            <header class="score-head">
-              <span class="score-stage">${esc(C.stageLabel(t, m))}</span>
-              <div class="score-when">
-                <input type="time" class="mini" data-field="time" value="${esc(m.time || "")}" aria-label="Start time">
-                <input type="text" class="mini" data-field="court" value="${esc(m.court || "")}" placeholder="Court" maxlength="20" aria-label="Court">
-              </div>
-            </header>
-            <div class="score-body">
-              <div class="score-team ${homeId ? "" : "is-tbd"} ${win === "home" ? "is-winner" : ""}">${win === "home" ? "🏆 " : ""}${esc(C.sourceLabel(t, m.home))}</div>
-              ${num("hs")}
-              <span class="score-sep">vs</span>
-              ${num("as")}
-              <div class="score-team right ${awayId ? "" : "is-tbd"} ${win === "away" ? "is-winner" : ""}">${esc(C.sourceLabel(t, m.away))}${win === "away" ? " 🏆" : ""}</div>
-            </div>
-            ${locked ? `
-            <footer class="final-bar">
-              <span class="final-tag">✓ Final</span>
-              <button type="button" class="btn btn-ghost btn-sm" data-edit>Edit result</button>
-            </footer>` : `
-            <footer class="status-switch" role="group" aria-label="Game status">
-              ${[["scheduled", "Not started"], ["live", "Live"], ["final", "Final"]].map(([s, label]) =>
-                `<button type="button" class="seg ${m.status === s ? "is-active" : ""}" data-status="${s}" ${ready ? "" : "disabled"}>${label}</button>`).join("")}
-            </footer>`}
-            ${ready ? "" : `<p class="muted-sm">Teams are decided once earlier games finish.</p>`}
-          </article>`;
-      }).join("")}
-    </div>
-    ${draws ? "" : `<p class="muted-sm">Draws are turned off, so a game can't be marked final while tied.</p>`}
+    ${cols.length ? cols.map((c) => `
+      <section class="mlist-round">
+        <h3 class="mlist-title">${esc(c.title)} <span>${c.matches.filter((m) => m.status === "final").length}/${c.matches.length}</span></h3>
+        <div class="mlist">${c.shown.map(row).join("")}</div>
+      </section>`).join("")
+    : `<p class="muted-sm">Nothing here — ${scoreFilter === "live" ? "no games are live right now" : scoreFilter === "done" ? "no games are finished yet" : "every game is finished 🎉"}.</p>`}
+    <p class="muted-sm">Tap a game to score it. Add times and courts inside each game.</p>
   `;
 
   panel.querySelectorAll("[data-filter]").forEach((b) => b.addEventListener("click", () => {
@@ -373,85 +384,183 @@ function renderScores(t, panel) {
     stickyIds.clear();
     render();
   }));
-
-  panel.querySelectorAll(".score-card").forEach((card) => {
-    const mid = card.dataset.id;
-    const m = t.matches[mid];
-    const inputs = { hs: card.querySelector('.score-input[data-side="hs"]'), as: card.querySelector('.score-input[data-side="as"]') };
-
-    const commitScore = (side, value) => {
-      if (m.status === "final") return;
-      const n = value === "" ? null : Math.max(0, Math.floor(Number(value)));
-      if (n !== null && !Number.isFinite(n)) return;
-      const patch = { [`matches.${mid}.${side}`]: n };
-      m[side] = n; // so "Final" right after typing sees the new score
-      // Typing a score into a game that hasn't started marks it live
-      if (m.status === "scheduled" && n !== null) {
-        patch[`matches.${mid}.status`] = "live";
-        m.status = "live";
-        const other = side === "hs" ? "as" : "hs";
-        if (!Number.isFinite(m[other])) { patch[`matches.${mid}.${other}`] = 0; m[other] = 0; }
-        if (t.status === "upcoming") patch.status = "live";
-      }
-      save(patch, "");
-    };
-
-    Object.values(inputs).forEach((inp) => inp.addEventListener("change", () => commitScore(inp.dataset.side, inp.value.trim())));
-    card.querySelectorAll(".step").forEach((b) => b.addEventListener("click", () => {
-      const side = b.dataset.side;
-      const delta = Number(b.dataset.step);
-      // Show the change straight away; the saved value arrives a moment later
-      const cur = Number.isFinite(m[side]) ? m[side] : 0;
-      m[side] = Math.max(0, cur + delta);
-      inputs[side].value = m[side];
-      const other = side === "hs" ? "as" : "hs";
-      if (!Number.isFinite(m[other])) { m[other] = 0; inputs[other].value = 0; }
-      if (m.status === "scheduled") m.status = "live";
-      store.adjustScore(id, mid, side, delta).catch((err) => toast(friendlyError(err), "error"));
-    }));
-
-    const editBtn = card.querySelector("[data-edit]");
-    if (editBtn) editBtn.addEventListener("click", () => {
-      const started = C.dependentMatches(t, mid).filter((x) => t.matches[x] && t.matches[x].status !== "scheduled");
-      const names = started.map((x) => `${C.stageLabel(t, { id: x, ...t.matches[x] })}: ${C.sourceLabel(t, t.matches[x].home)} vs ${C.sourceLabel(t, t.matches[x].away)}`);
-      const msg = started.length
-        ? `Change this result?\n\nThese later games depend on it and have already started:\n• ${names.join("\n• ")}\n\nThey'll be reset to "Not started" and their scores cleared, because the teams in them could change.`
-        : "Change this result? The game will reopen as Live so you can fix the score, then tap Final again.";
-      if (!confirm(msg)) return;
-      const patch = { [`matches.${mid}.status`]: "live" };
-      started.forEach((x) => {
-        patch[`matches.${x}.status`] = "scheduled";
-        patch[`matches.${x}.hs`] = null;
-        patch[`matches.${x}.as`] = null;
-      });
-      save(patch, started.length ? `Game reopened — ${started.length} later game${started.length === 1 ? "" : "s"} reset` : "Game reopened — fix the score, then tap Final");
-    });
-
-    card.querySelectorAll("[data-field]").forEach((inp) => inp.addEventListener("change", () => {
-      save({ [`matches.${mid}.${inp.dataset.field}`]: inp.value.trim() }, "");
-    }));
-
-    card.querySelectorAll("[data-status]").forEach((b) => b.addEventListener("click", () => {
-      const s = b.dataset.status;
-      const hs = m.hs, as = m.as;
-      if (s === "final") {
-        if (!Number.isFinite(hs) || !Number.isFinite(as)) return toast("Enter both scores before marking the game final.", "error");
-        const drawsOk = m.stage === "group" && (t.settings || {}).allowDraws !== false;
-        if (hs === as && !drawsOk) return toast(m.stage === "ko" ? "Knockout games need a winner — scores can't be tied." : "Draws are turned off for this tournament.", "error");
-      }
-      const patch = { [`matches.${mid}.status`]: s };
-      if (s === "scheduled") { patch[`matches.${mid}.hs`] = null; patch[`matches.${mid}.as`] = null; }
-      if (s === "live") {
-        if (!Number.isFinite(hs)) patch[`matches.${mid}.hs`] = 0;
-        if (!Number.isFinite(as)) patch[`matches.${mid}.as`] = 0;
-      }
-      if (s === "final" && scoreFilter !== "all") stickyIds.add(mid);
-      if (s === "scheduled" && (Number.isFinite(hs) || Number.isFinite(as)) && !confirm("Reset this game? The score will be cleared.")) return;
-      // Kick off the tournament automatically when the first game goes live
-      if (s === "live" && t.status === "upcoming") patch.status = "live";
-      save(patch, s === "final" ? "Final score saved" : s === "live" ? "Game is live" : "Game reset");
-    }));
+  const cf = panel.querySelector("#court-filter");
+  if (cf) cf.addEventListener("change", () => {
+    courtFilter = cf.value;
+    sessionStorageSet("r4r-admin-court", courtFilter);
+    stickyIds.clear();
+    render();
   });
+  panel.querySelectorAll("[data-open]").forEach((b) => b.addEventListener("click", () => openSheet(b.dataset.open)));
+
+  if (sheetId) renderSheet();
+}
+
+// --- Scoreboard sheet ------------------------------------------------------------
+
+const sheetEl = document.createElement("div");
+sheetEl.className = "ssheet-backdrop";
+sheetEl.hidden = true;
+document.body.appendChild(sheetEl);
+sheetEl.addEventListener("click", (e) => { if (e.target === sheetEl) closeSheet(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && sheetId) closeSheet(); });
+
+function openSheet(mid) {
+  sheetId = mid;
+  renderSheet();
+  sheetEl.hidden = false;
+  document.body.classList.add("no-scroll");
+}
+
+function closeSheet() {
+  sheetId = null;
+  sheetEl.hidden = true;
+  sheetEl.innerHTML = "";
+  document.body.classList.remove("no-scroll");
+}
+
+function startGame(t, mid) {
+  const m = t.matches[mid];
+  const patch = { [`matches.${mid}.status`]: "live" };
+  if (!Number.isFinite(m.hs)) patch[`matches.${mid}.hs`] = 0;
+  if (!Number.isFinite(m.as)) patch[`matches.${mid}.as`] = 0;
+  if (t.status === "upcoming") patch.status = "live";
+  return save(patch, "Game is live");
+}
+
+function finishGame(t, mid) {
+  const m = t.matches[mid];
+  const problem = C.resultProblem(t, m, m.hs, m.as);
+  if (problem) { toast(problem, "error"); return; }
+  if (scoreFilter !== "all") stickyIds.add(mid);
+  return save({ [`matches.${mid}.status`]: "final" }, "Final score saved");
+}
+
+function setResult(t, mid, hs, as) {
+  const m = t.matches[mid];
+  const patch = { [`matches.${mid}.hs`]: hs, [`matches.${mid}.as`]: as };
+  if (m.status === "scheduled") {
+    patch[`matches.${mid}.status`] = "live";
+    if (t.status === "upcoming") patch.status = "live";
+  }
+  Object.assign(m, { hs, as, status: m.status === "scheduled" ? "live" : m.status });
+  return save(patch, "");
+}
+
+function resetGame(t, mid) {
+  if (!confirm("Reset this game to Not started? The score will be cleared.")) return;
+  save({ [`matches.${mid}.status`]: "scheduled", [`matches.${mid}.hs`]: null, [`matches.${mid}.as`]: null }, "Game reset");
+}
+
+function editResult(t, mid) {
+  const started = C.dependentMatches(t, mid).filter((x) => t.matches[x] && t.matches[x].status !== "scheduled");
+  const names = started.map((x) => `${C.stageLabel(t, { id: x, ...t.matches[x] })}: ${C.sourceLabel(t, t.matches[x].home)} vs ${C.sourceLabel(t, t.matches[x].away)}`);
+  const msg = started.length
+    ? `Change this result?\n\nThese later games depend on it and have already started:\n• ${names.join("\n• ")}\n\nThey'll be reset to "Not started" and their scores cleared, because the teams in them could change.`
+    : "Change this result? The game will reopen as Live so you can fix the score, then save it as final again.";
+  if (!confirm(msg)) return;
+  const patch = { [`matches.${mid}.status`]: "live" };
+  started.forEach((x) => {
+    patch[`matches.${x}.status`] = "scheduled";
+    patch[`matches.${x}.hs`] = null;
+    patch[`matches.${x}.as`] = null;
+  });
+  save(patch, started.length ? `Game reopened — ${started.length} later game${started.length === 1 ? "" : "s"} reset` : "Game reopened");
+}
+
+function renderSheet() {
+  const t = current;
+  if (!sheetId || !t || !t.matches || !t.matches[sheetId]) { if (sheetId) closeSheet(); return; }
+  const a = document.activeElement;
+  if (a && sheetEl.contains(a) && /^(INPUT|SELECT)$/.test(a.tagName)) return; // don't redraw mid-typing
+  const mid = sheetId;
+  const m = { id: mid, ...t.matches[mid] };
+  const hId = C.resolveSource(t, m.home), aId = C.resolveSource(t, m.away);
+  const ready = hId && aId;
+  const st = m.status;
+  const win = C.winnerSide(m);
+  const quick = st !== "final" && ready ? C.quickResults(t) : [];
+  const next = st === "final" ? C.nextGame(t, mid, m.court) : null;
+  const val = (v) => (Number.isFinite(v) ? v : 0);
+
+  const teamRow = (side, scoreKey, teamId) => `
+    <div class="board-row ${win === side ? "is-winner" : win ? "is-loser" : ""}">
+      <p class="board-name ${teamId ? "" : "is-tbd"}">${win === side ? "🏆 " : ""}${esc(C.sourceLabel(t, m[side]))}</p>
+      <div class="board-score">
+        ${st === "final" || !ready ? "" : `<button type="button" class="board-btn" data-step="-1" data-side="${scoreKey}" aria-label="Minus one" ${val(m[scoreKey]) === 0 ? "disabled" : ""}>−</button>`}
+        <span class="board-num">${st === "scheduled" ? "–" : val(m[scoreKey])}</span>
+        ${st === "final" || !ready ? "" : `<button type="button" class="board-btn plus" data-step="1" data-side="${scoreKey}" aria-label="Plus one">+</button>`}
+      </div>
+    </div>`;
+
+  const stateChip = st === "live" ? `<span class="chip chip-live"><span class="live-dot" aria-hidden="true"></span>Live</span>`
+    : st === "final" ? `<span class="chip chip-final">Final</span>` : `<span class="chip">Not started</span>`;
+
+  let actions;
+  if (!ready) {
+    actions = `<p class="muted-sm">Teams are decided once earlier games finish.</p>`;
+  } else if (st === "scheduled") {
+    actions = `<button type="button" class="btn btn-accent btn-lg" data-act="start">Start game</button>`;
+  } else if (st === "live") {
+    actions = `<button type="button" class="btn btn-accent btn-lg" data-act="final">✓ Save final score</button>
+      <button type="button" class="btn btn-ghost btn-sm danger" data-act="reset">Reset game</button>`;
+  } else {
+    actions = `${next ? `<button type="button" class="btn btn-accent btn-lg" data-next="${esc(next.id)}">Next game${next.court && next.court === m.court ? ` on ${esc(next.court)}` : ""} →</button>
+        <p class="next-preview">${esc(C.sourceLabel(t, next.home))} vs ${esc(C.sourceLabel(t, next.away))}${next.time ? ` · ${esc(formatTime(next.time))}` : ""}</p>`
+      : `<p class="next-preview">No more games to play${m.court ? ` on ${esc(m.court)}` : ""} 🎉</p>`}
+      <button type="button" class="btn btn-ghost btn-sm" data-act="edit">Edit result</button>`;
+  }
+
+  sheetEl.innerHTML = `
+    <div class="ssheet status-${st}" role="dialog" aria-modal="true" aria-label="Score this game">
+      <header class="ssheet-head">
+        <div>
+          <p class="ssheet-stage">${esc(C.stageLabel(t, m))}</p>
+          <p class="ssheet-when">${[m.time ? formatTime(m.time) : "", m.court].filter(Boolean).map(esc).join(" · ") || "No time or court yet"}</p>
+        </div>
+        <div class="ssheet-head-right">${stateChip}<button type="button" class="icon-btn" data-close aria-label="Close">✕</button></div>
+      </header>
+
+      <div class="board">${teamRow("home", "hs", hId)}${teamRow("away", "as", aId)}</div>
+
+      ${quick.length ? `
+        <div class="quick">
+          <p class="quick-label">Quick result</p>
+          <div class="quick-btns">${quick.map(([h, a2]) => `<button type="button" class="quick-btn ${m.hs === h && m.as === a2 ? "is-active" : ""}" data-quick="${h}-${a2}">${h}–${a2}</button>`).join("")}</div>
+        </div>` : ""}
+
+      <div class="ssheet-actions">${actions}</div>
+
+      <details class="ssheet-details">
+        <summary>Time &amp; court</summary>
+        <div class="field-row">
+          <label class="field"><span>Start time</span><input type="time" data-field="time" value="${esc(m.time || "")}"></label>
+          <label class="field"><span>Court</span><input type="text" data-field="court" value="${esc(m.court || "")}" placeholder="e.g. Court 1" maxlength="20"></label>
+        </div>
+      </details>
+    </div>`;
+
+  sheetEl.querySelector("[data-close]").addEventListener("click", closeSheet);
+  sheetEl.querySelectorAll("[data-step]").forEach((b) => b.addEventListener("click", () => {
+    const side = b.dataset.side;
+    const delta = Number(b.dataset.step);
+    if (delta < 0 && val(t.matches[mid][side]) === 0) return;
+    store.adjustScore(id, mid, side, delta, t).catch((err) => toast(friendlyError(err), "error"));
+  }));
+  sheetEl.querySelectorAll("[data-quick]").forEach((b) => b.addEventListener("click", () => {
+    const [h, a2] = b.dataset.quick.split("-").map(Number);
+    setResult(t, mid, h, a2);
+  }));
+  sheetEl.querySelectorAll("[data-field]").forEach((inp) => inp.addEventListener("change", () => {
+    save({ [`matches.${mid}.${inp.dataset.field}`]: inp.value.trim() }, "Saved");
+  }));
+  const act = (name, fn) => { const el = sheetEl.querySelector(`[data-act="${name}"]`); if (el) el.addEventListener("click", fn); };
+  act("start", () => startGame(t, mid));
+  act("final", () => finishGame(t, mid));
+  act("reset", () => resetGame(t, mid));
+  act("edit", () => editResult(t, mid));
+  const nb = sheetEl.querySelector("[data-next]");
+  if (nb) nb.addEventListener("click", () => openSheet(nb.dataset.next));
 }
 
 // --- Teams ---------------------------------------------------------------------
@@ -743,6 +852,17 @@ function renderSetup(t, panel) {
         <label class="field"><span>Loss</span><input name="loss" type="number" min="0" max="10" value="${s.loss}"></label>
       </div>
       <label class="check"><input type="checkbox" name="allowDraws" ${s.allowDraws ? "checked" : ""}> Allow draws in group games</label>
+
+      <h2 class="panel-title">Scoring</h2>
+      <p class="muted-sm">With sets, scorers get one-tap results (like 2–1) and the app checks every score is a real result.</p>
+      <div class="field-row">
+        <label class="field grow"><span>How games are scored</span>
+          <select name="bestOf">
+            ${[[0, "Points or goals (any score)"], [1, "Sets — one set"], [3, "Sets — best of 3"], [5, "Sets — best of 5"]].map(([v, label]) =>
+              `<option value="${v}" ${(Number(s.bestOf) || 0) === v ? "selected" : ""}>${label}</option>`).join("")}
+          </select>
+        </label>
+      </div>
       <div><button class="btn btn-accent" type="submit">Save settings</button></div>
     </form>
 
@@ -771,7 +891,12 @@ function renderSetup(t, panel) {
       published: f.get("published") === "on",
       signupUrl: safeUrl(f.get("signupUrl")),
       signupsOpen: f.get("signupsOpen") === "on",
-      settings: { win: n("win"), draw: n("draw"), loss: n("loss"), allowDraws: f.get("allowDraws") === "on" }
+      settings: {
+        win: n("win"), draw: n("draw"), loss: n("loss"),
+        // Set games can't end level, so draws only make sense for free scoring
+        allowDraws: f.get("allowDraws") === "on" && !n("bestOf"),
+        bestOf: n("bestOf")
+      }
     }, "Settings saved");
   });
 
@@ -797,7 +922,7 @@ store.onAuth((u) => {
   if (unwatch) { unwatch(); unwatch = null; }
   if (!user) return renderSignIn();
   if (id) {
-    unwatch = store.watchTournament(id, (t) => { current = t; scheduleRender(); });
+    unwatch = store.watchTournament(id, (t) => { current = t; scheduleRender(); if (tab !== "scores" && sheetId) renderSheet(); });
   } else {
     unwatch = store.watchTournaments((list) => renderDashboard(list));
   }
