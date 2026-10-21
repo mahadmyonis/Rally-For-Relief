@@ -1,16 +1,15 @@
 // Rally for Relief — share a tournament with a ready-made message
 
 import * as C from "./tournament-core.js";
-import { esc, formatDate, signupsOpen } from "./ui.js";
+import { esc, signupsOpen } from "./ui.js";
 
 export function tournamentUrl(id) {
   return new URL(`/tournaments/?t=${encodeURIComponent(id)}`, location.origin).href;
 }
 
-// One line saying what the link is for, plus when/where, then the link.
+// One line saying what the link is for, then the link.
 // It follows the tournament: sign-ups, schedule, live scores, or results.
 export function shareMessage(t, url) {
-  const when = [t.date ? `📅 ${formatDate(t.date)}` : "", t.location ? `📍 ${t.location}` : ""].filter(Boolean).join("  ");
   const champ = C.champion(t);
   let purpose;
   if (t.status === "finished" || champ) {
@@ -26,7 +25,7 @@ export function shareMessage(t, url) {
       ? `🏐 Schedule for ${t.name} — check game times now and follow live scores on the day 👇`
       : `🏐 ${t.name} — details now, live scores on the day 👇`;
   }
-  return [purpose, t.status === "live" || champ || t.status === "finished" ? "" : when, url].filter(Boolean).join("\n");
+  return `${purpose}\n${url}`;
 }
 
 async function copy(text) {
