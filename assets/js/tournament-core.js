@@ -449,3 +449,18 @@ export function nextGame(t, afterId, court) {
   const ready = (m) => m.id !== afterId && m.status !== "final" && resolveSource(t, m.home) && resolveSource(t, m.away);
   return (court && ordered.find((m) => ready(m) && m.court === court)) || ordered.find(ready) || null;
 }
+
+// Game numbers in play order (#1, #2…), the same everywhere on the site
+export function gameNumbers(t) {
+  const out = {};
+  scheduleList(t).forEach((m, i) => { out[m.id] = i + 1; });
+  return out;
+}
+
+// Knockout games a team could still reach through its group position
+export function possibleKnockouts(t, teamId) {
+  const group = (t.groups || []).find((g) => g.teamIds.includes(teamId));
+  if (!group || groupComplete(t, group.id)) return [];
+  return scheduleList(t).filter((m) => m.stage === "ko" &&
+    [m.home, m.away].some((s) => s && s.t === "group" && s.g === group.id));
+}

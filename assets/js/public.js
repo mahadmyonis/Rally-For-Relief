@@ -120,6 +120,103 @@ function matchCard(t, m) {
 }
 
 // Compact game tile used in the round columns
+// One team's day, step by step: summary, then each game in order
+function teamTimeline(t, teamId, mine) {
+  const nums = numbersFor(t);
+  const list = C.scheduleList(t).filter(mine);
+  const name = C.teamName(t, teamId);
+  const group = (t.groups || []).find((g) => g.teamIds.includes(teamId));
+  const maybe = C.possibleKnockouts(t, teamId);
+  if (!list.length && !maybe.length) {
+    return `<div class="empty"><h2>No games for ${esc(name)} yet</h2><p>Check back closer to the day.</p></div>`;
+  }
+
+  // Result from this team's side
+  const view1 = (m) => {
+    const home = C.resolveSource(t, m.home) === teamId;
+    return { us: home ? m.hs : m.as, them: home ? m.as : m.hs, opp: C.sourceLabel(t, home ? m.away : m.home) };
+  };
+  const played = list.filter((m) => m.status === "final");
+  const won = played.filter((m) => { const v = view1(m); return v.us > v.them; }).length;
+  const drawn = played.filter((m) => { const v = view1(m); return v.us === v.them; }).length;
+  const lost = played.length - won - drawn;
+  const next = list.find((m) => m.status !== "final");
+  const nextIdx = next ? list.indexOf(next) : -1;
+  let pos = "";
+  if (group) {
+    const rows = C.computeStandings(t, group);
+    const i = rows.findIndex((r) => r.id === teamId);
+    if (i >= 0 && played.some((m) => m.stage === "group")) pos = `${C.ordinal(i + 1)} in ${group.name}`;
+    else pos = group.name;
+  }
+  const whenWhere = (m) => [m.time ? `🕒 ${esc(formatTime(m.time))}` : "", m.court ? `📍 ${esc(m.court)}` : ""].filter(Boolean).join("<span class=\"dot-sep\">·</span>");
+
+  const summary = `
+    <section class="team-sum">
+      <p class="eyebrow">Following</p>
+      <h3 class="team-sum-name">${esc(name)}</h3>
+      <div class="team-sum-stats">
+        ${pos ? `<span>${esc(pos)}</span>` : ""}
+        <span>${list.length} game${list.length === 1 ? "" : "s"}${maybe.length ? " so far" : ""}</span>
+        ${played.length ? `<span>Won ${won}${drawn ? ` · Drew ${drawn}` : ""} · Lost ${lost}</span>` : ""}
+      </div>
+      ${next ? `
+        <div class="team-sum-next ${next.status === "live" ? "is-live" : ""}">
+          <p class="tsn-label">${next.status === "live" ? `<span class="live-dot" aria-hidden="true"></span> Playing now` : "Next game"}</p>
+          <p class="tsn-main">Game ${nextIdx + 1} of ${list.length} · vs <strong>${esc(view1(next).opp)}</strong></p>
+          ${whenWhere(next) ? `<p class="tsn-when">${whenWhere(next)}</p>` : ""}
+        </div>` : list.length ? `<div class="team-sum-next"><p class="tsn-main">All games played ✓</p></div>` : ""}
+    </section>`;
+
+  const items = list.map((m, i) => {
+    const v = view1(m);
+    const state = m.status === "final" ? "done" : m.status === "live" ? "live" : m === next ? "next" : "later";
+    let result = "";
+    if (m.status === "final") {
+      const word = v.us > v.them ? "Won" : v.us < v.them ? "Lost" : "Draw";
+      result = `<span class="tl-result r-${word.toLowerCase()}">${word} ${v.us}–${v.them}</span>`;
+    } else if (m.status === "live") {
+      result = `<span class="tl-result r-live"><span class="live-dot" aria-hidden="true"></span>Live ${Number.isFinite(v.us) ? v.us : 0}–${Number.isFinite(v.them) ? v.them : 0}</span>`;
+    } else if (state === "next") {
+      result = `<span class="tl-result r-next">Up next</span>`;
+    }
+    return `
+      <li class="tl-item state-${state}">
+        <span class="tl-marker" aria-hidden="true">${state === "done" ? "✓" : state === "live" ? "" : i + 1}</span>
+        <div class="tl-card">
+          <div class="tl-top">
+            <p class="tl-step">Game ${i + 1} <span>of ${list.length}</span></p>
+            ${result}
+          </div>
+          <p class="tl-vs">vs <strong>${esc(v.opp)}</strong></p>
+          <p class="tl-meta">${esc(C.stageLabel(t, m))} <span class="dot-sep">·</span> Game #${nums[m.id]}</p>
+          ${whenWhere(m) ? `<p class="tl-when">${whenWhere(m)}</p>` : ""}
+        </div>
+      </li>`;
+  }).join("");
+
+  const adv = group ? group.advance || 0 : 0;
+  const firstKo = maybe[0];
+  const maybeItem = firstKo && adv ? `
+      <li class="tl-item state-maybe">
+        <span class="tl-marker" aria-hidden="true">?</span>
+        <div class="tl-card">
+          <p class="tl-step">Knockouts</p>
+          <p class="tl-vs">If ${esc(name)} finish in the top ${adv} of ${esc(group.name)}</p>
+          <p class="tl-meta">${esc(C.stageLabel(t, firstKo))}${firstKo.time ? ` from ${esc(formatTime(firstKo.time))}` : ""}</p>
+        </div>
+      </li>` : "";
+
+  return `${summary}<ol class="timeline">${items}${maybeItem}</ol>`;
+}
+
+// Game numbers, worked out once per update of the tournament
+const numberCache = new WeakMap();
+function numbersFor(t) {
+  if (!numberCache.has(t)) numberCache.set(t, C.gameNumbers(t));
+  return numberCache.get(t);
+}
+
 function gameTile(t, m) {
   const win = C.winnerSide(m);
   const g = m.stage === "group" ? ((t.groups || []).find((x) => x.id === m.group) || {}).name : (m.third ? "3rd place" : "");
@@ -134,6 +231,7 @@ function gameTile(t, m) {
   return `
     <article class="gtile status-${m.status}">
       <header class="gt-head">
+        <span class="gt-num">#${numbersFor(t)[m.id]}</span>
         ${g ? `<span class="gt-tag">${esc(g)}</span>` : ""}
         <span class="gt-meta">${meta}</span>
         ${m.status === "live" ? `<span class="gt-live"><span class="live-dot" aria-hidden="true"></span>Live</span>` : m.status === "final" ? `<span class="gt-final">FT</span>` : ""}
@@ -144,18 +242,8 @@ function gameTile(t, m) {
 
 function matchesTab(t) {
   const mine = (m) => [C.resolveSource(t, m.home), C.resolveSource(t, m.away)].includes(teamFilter);
-  // Following a team: just their games, in order, with the next one first
-  if (teamFilter) {
-    const list = C.scheduleList(t).filter(mine);
-    if (!list.length) return `<div class="empty"><h2>No games for this team yet</h2><p>Check back closer to the day.</p></div>`;
-    const next = list.find((m) => m.status !== "final");
-    return `
-      ${next ? `<section class="up-next"><h3 class="round-title">${next.status === "live" ? "Playing now" : "Up next"}</h3>${matchCard(t, next)}</section>` : ""}
-      <section class="round-block">
-        <h3 class="round-title">All their games</h3>
-        <div class="match-grid">${list.map((m) => matchCard(t, m)).join("")}</div>
-      </section>`;
-  }
+  // Following a team: a numbered timeline of their games, in play order
+  if (teamFilter) return teamTimeline(t, teamFilter, mine);
 
   const cols = C.roundColumns(t);
   if (!cols.length) {

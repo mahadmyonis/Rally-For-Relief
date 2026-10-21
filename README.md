@@ -47,7 +47,7 @@ Scores count as goals, points or sets, whatever suits the sport. Under **Setting
 
 **Scoring on match day:** the **Scores** tab lists every game by round, with a progress bar, filters (To play / Live / Done) and a court filter. Tap a game to open its scoreboard: **Start game**, then use the big **+ / −** buttons or a quick result, then **Save final score**. After that, **Next game** jumps straight to the next game on the same court.
 
-**What visitors see:** the **Games** tab lays rounds out side by side like a bracket (Round 1 → … → Final), opening on the round being played. Each group's standings come with a results grid showing who beat whom. Following a team switches the view to that team's games, with their next one at the top.
+**What visitors see:** the **Games** tab lays rounds out side by side like a bracket (Round 1 → … → Final), opening on the round being played. Each group's standings come with a results grid showing who beat whom. Following a team switches to a numbered timeline of their games ("Game 1 of 4", "Game 2 of 4"…) with time, court, opponent and the result from their side. A summary card shows their group position, record and next game, and a final step shows the knockouts they could reach. Every game also has a number (#1, #2…) in play order, the same across the page.
 
 ### Sign-ups and donations
 

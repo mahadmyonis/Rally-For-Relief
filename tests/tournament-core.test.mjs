@@ -375,3 +375,15 @@ test("next game: same court first, skips finished and undecided games", () => {
   list.forEach((m) => play(t, m.id, 1, 0));
   assert.equal(C.nextGame(t, first.id, "Court 1"), null);
 });
+
+test("game numbers follow play order; possible knockouts only while the group is open", () => {
+  const t = makeTournament(["A", "B", "C", "D"]);
+  addGroups(t, 2, 1);
+  Object.assign(t.matches, C.buildKnockout(C.seedsFromGroups(t.groups, 1)));
+  const nums = C.gameNumbers(t);
+  assert.deepEqual(C.scheduleList(t).map((m) => nums[m.id]), [1, 2, 3]);
+  const team = t.groups[0].teamIds[0];
+  assert.equal(C.possibleKnockouts(t, team).length, 1);
+  C.matchList(t).filter((m) => m.group === t.groups[0].id).forEach((m) => play(t, m.id, 1, 0));
+  assert.equal(C.possibleKnockouts(t, team).length, 0);
+});

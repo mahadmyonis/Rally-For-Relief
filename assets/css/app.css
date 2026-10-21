@@ -1154,3 +1154,120 @@ body.no-scroll { overflow: hidden; }
   .mrow { grid-template-columns: 70px minmax(0, 1fr) 18px; }
   .mrow-when b { font-size: 13px; }
 }
+
+/* ==========================================================================
+   Following a team: summary + numbered timeline
+   ========================================================================== */
+
+.gt-num { font-weight: 700; color: var(--grey); font-variant-numeric: tabular-nums; }
+.dot-sep { margin: 0 6px; color: var(--grey); }
+
+.team-sum {
+  padding: 22px;
+  margin-bottom: 26px;
+  border-radius: var(--radius);
+  background: radial-gradient(120% 140% at 100% 0%, rgba(212, 166, 58, 0.12), transparent 55%), var(--surface);
+  border: 1px solid rgba(212, 166, 58, 0.35);
+}
+.team-sum-name {
+  margin-top: 8px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(28px, 6vw, 40px);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.team-sum-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.team-sum-stats span {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  font-size: 14px;
+  font-weight: 600;
+}
+.team-sum-next {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  border-left: 4px solid var(--gold);
+}
+.team-sum-next.is-live { background: rgba(212, 166, 58, 0.1); }
+.tsn-label { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gold); }
+.tsn-main { margin-top: 4px; font-size: 18px; font-weight: 600; }
+.tsn-when { margin-top: 4px; color: var(--grey); font-size: 15px; }
+
+.timeline { position: relative; display: flex; flex-direction: column; gap: 12px; }
+.tl-item { position: relative; display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; }
+/* The line joining the steps */
+.tl-item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 19px;
+  top: 40px;
+  bottom: -12px;
+  width: 2px;
+  background: var(--line);
+}
+.tl-item.state-done:not(:last-child)::before { background: rgba(212, 166, 58, 0.5); }
+.tl-marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 2px solid var(--line);
+  color: var(--grey);
+  font-weight: 800;
+  font-family: var(--font-display);
+}
+.state-done .tl-marker { background: var(--gold); border-color: var(--gold); color: var(--black); }
+.state-live .tl-marker { border-color: var(--gold); }
+.state-live .tl-marker::after {
+  content: "";
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: pulse 1.6s ease-out infinite;
+}
+.state-next .tl-marker { border-color: var(--gold); color: var(--gold); }
+.state-maybe .tl-marker { border-style: dashed; }
+
+.tl-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.state-live .tl-card, .state-next .tl-card { border-color: rgba(212, 166, 58, 0.6); }
+.state-maybe .tl-card { border-style: dashed; background: transparent; }
+.state-done .tl-card { opacity: 0.9; }
+.tl-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.tl-step { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--grey); }
+.tl-step span { font-weight: 500; }
+.tl-vs { margin-top: 6px; font-size: 18px; }
+.tl-vs strong { font-weight: 700; }
+.tl-meta { margin-top: 4px; color: var(--grey); font-size: 14px; }
+.tl-when { margin-top: 6px; font-size: 15px; font-weight: 600; }
+.tl-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.r-won { background: var(--gold); color: var(--black); }
+.r-lost { background: var(--surface-2); color: var(--grey); }
+.r-draw { background: var(--surface-2); color: var(--cream); }
+.r-live { background: rgba(212, 166, 58, 0.16); color: var(--gold); }
+.r-next { border: 1px solid rgba(212, 166, 58, 0.6); color: var(--gold); }
+
+@media (prefers-reduced-motion: reduce) {
+  .state-live .tl-marker::after { animation: none; }
+}
