@@ -7,41 +7,26 @@ export function tournamentUrl(id) {
   return new URL(`/tournaments/?t=${encodeURIComponent(id)}`, location.origin).href;
 }
 
-// The message changes with the tournament: sign-ups, live, or results
+// One line saying what the link is for, plus when/where, then the link.
+// It follows the tournament: sign-ups, schedule, live scores, or results.
 export function shareMessage(t, url) {
   const when = [t.date ? `📅 ${formatDate(t.date)}` : "", t.location ? `📍 ${t.location}` : ""].filter(Boolean).join("  ");
   const champ = C.champion(t);
-  const live = C.matchList(t).filter((m) => m.status === "live" && !C.isByeMatch(m)).length;
-  let lines;
+  let purpose;
   if (t.status === "finished" || champ) {
-    lines = [
-      champ ? `🏆 ${C.teamName(t, champ)} are the ${t.name} champions!` : `🏆 That's a wrap on ${t.name}!`,
-      "Thank you to every team, volunteer and supporter who came out for a good cause 🤍",
-      "",
-      `See all the results, standings and the bracket 👇`
-    ];
+    purpose = champ
+      ? `🏆 ${t.name} results — ${C.teamName(t, champ)} are champions. Full standings and bracket 👇`
+      : `🏆 ${t.name} results — standings and bracket 👇`;
   } else if (t.status === "live") {
-    lines = [
-      `🔴 LIVE: ${t.name} is happening right now!`,
-      live ? `${live} game${live === 1 ? "" : "s"} on court — follow every score as it happens.` : "Follow every score, the standings and the bracket as it happens.",
-      t.location ? `📍 ${t.location}` : "",
-      "",
-      "Live scores 👇"
-    ];
+    purpose = `🔴 Live scores for ${t.name} — follow every game, the standings and the bracket 👇`;
+  } else if (signupsOpen(t)) {
+    purpose = `🏐 Sign-ups are open for ${t.name} — register your team here 👇`;
   } else {
-    lines = [
-      `🏐 ${t.name} is coming up!`,
-      when,
-      signupsOpen(t)
-        ? "Limited spots — get your team in and play for a good cause 🤍"
-        : "Come play, cheer and give back with us 🤍",
-      "",
-      signupsOpen(t) ? "Details & sign-up 👇" : "Schedule & details 👇"
-    ];
+    purpose = C.scheduleList(t).length
+      ? `🏐 Schedule for ${t.name} — check game times now and follow live scores on the day 👇`
+      : `🏐 ${t.name} — details now, live scores on the day 👇`;
   }
-  return [...lines.filter((l, i) => l !== "" || i > 0), url, "", "Play hard. Give back. 🏹 @rally4relief"]
-    .filter((l, i, a) => !(l === "" && a[i - 1] === ""))
-    .join("\n");
+  return [purpose, t.status === "live" || champ || t.status === "finished" ? "" : when, url].filter(Boolean).join("\n");
 }
 
 async function copy(text) {

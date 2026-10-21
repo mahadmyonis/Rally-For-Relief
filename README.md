@@ -56,7 +56,7 @@ Scores count as goals, points or sets, whatever suits the sport. Under **Setting
 
 ### Sharing
 
-Every published tournament page, and the organiser app, has a **Share** button. It opens a ready-made message that changes with the tournament: sign-ups while it's upcoming, "LIVE" while games are on, and the champions once it's finished. The message can be edited, then shared through the phone's share menu or WhatsApp, or copied as a message or a link.
+Every published tournament page, and the organiser app, has a **Share** button. It opens a short ready-made message saying what the link is for, which changes with the tournament: sign-ups while they're open, the schedule once they close, live scores during games, and results at the end. The message can be edited, then shared through the phone's share menu or WhatsApp, or copied as a message or a link.
 
 ### How the standings are worked out
 
