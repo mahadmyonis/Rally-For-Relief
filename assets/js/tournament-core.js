@@ -422,9 +422,10 @@ export function roundColumns(t) {
   };
   group.forEach((m) => {
     const k = timed ? m.time : order[m.id]?.n ?? m.round;
-    add(`s${k}`, { title: `Slot ${timed ? 0 : k}`, time: timed ? m.time : "", stage: "group" }, m);
+    add(`s${k}`, { title: "", time: timed ? m.time : "", stage: "group" }, m);
   });
-  cols.forEach((c, i) => { c.title = `Slot ${i + 1}`; c.slot = i + 1; });
+  // Round N = each group's game N, played at the same time on their own courts
+  cols.forEach((c, i) => { c.title = `Round ${i + 1}`; c.slot = i + 1; });
   ko.sort((a, b) => a.round - b.round || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot)
     .forEach((m) => add(`k${m.round}`, { title: roundName(m.rounds || m.round, m.round), time: "", stage: "ko" }, m));
   const courtSort = (a, b) => (a.court || "").localeCompare(b.court || "", undefined, { numeric: true }) || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot;

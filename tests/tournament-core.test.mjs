@@ -328,7 +328,7 @@ test("columns: group stage in slots (each group's game N together), then knockou
   Object.assign(t.matches, C.buildKnockout(C.seedsFromGroups(t.groups, 2), { thirdPlace: true }));
   const cols = C.roundColumns(t);
   // 3 teams per group → 3 games each → 3 slots of 2 games (one per group), then semis and final
-  assert.deepEqual(cols.map((c) => c.title), ["Slot 1", "Slot 2", "Slot 3", "Semi-finals", "Final"]);
+  assert.deepEqual(cols.map((c) => c.title), ["Round 1", "Round 2", "Round 3", "Semi-finals", "Final"]);
   cols.slice(0, 3).forEach((c) => assert.deepEqual(c.matches.map((m) => m.group).sort(), ["g0", "g1"]));
   assert.equal(cols.reduce((n, c) => n + c.matches.length, 0), C.scheduleList(t).length);
   assert.ok(cols[4].matches[1].third, "third place after the final");

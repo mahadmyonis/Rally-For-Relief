@@ -122,7 +122,6 @@ function matchCard(t, m) {
 // Compact game tile used in the round columns
 // One team's day, step by step: summary, then each game in order
 function teamTimeline(t, teamId, mine) {
-  const nums = numbersFor(t);
   const list = C.scheduleList(t).filter(mine);
   const name = C.teamName(t, teamId);
   const group = (t.groups || []).find((g) => g.teamIds.includes(teamId));
@@ -189,7 +188,7 @@ function teamTimeline(t, teamId, mine) {
             ${result}
           </div>
           <p class="tl-vs">vs <strong>${esc(v.opp)}</strong></p>
-          <p class="tl-meta">${esc(m.stage === "group" ? (group ? group.name : "Group stage") : C.stageLabel(t, m))} <span class="dot-sep">·</span> Game #${nums[m.id]}</p>
+          <p class="tl-meta">${esc(gameLabel(t, m))}</p>
           ${whenWhere(m) ? `<p class="tl-when">${whenWhere(m)}</p>` : ""}
         </div>
       </li>`;
@@ -210,16 +209,25 @@ function teamTimeline(t, teamId, mine) {
   return `${summary}<ol class="timeline">${items}${maybeItem}</ol>`;
 }
 
-// Game numbers, worked out once per update of the tournament
-const numberCache = new WeakMap();
-function numbersFor(t) {
-  if (!numberCache.has(t)) numberCache.set(t, C.gameNumbers(t));
-  return numberCache.get(t);
+// "Group A · Game 3", "Semi-final 1", "Final", "3rd place" — worked out once per update
+const orderCache = new WeakMap();
+function gameLabel(t, m) {
+  if (!orderCache.has(t)) orderCache.set(t, C.groupOrder(t));
+  if (m.stage === "group") {
+    const g = (t.groups || []).find((x) => x.id === m.group);
+    const o = orderCache.get(t)[m.id];
+    return `${g ? g.name : "Group"}${o ? ` · Game ${o.n}` : ""}`;
+  }
+  if (m.third) return "3rd place";
+  const name = C.roundName(m.rounds || m.round, m.round);
+  if (name === "Final") return "Final";
+  const count = C.matchList(t).filter((x) => x.stage === "ko" && !x.third && x.round === m.round && !C.isByeMatch(x)).length;
+  const single = name.replace(/s$/, "").replace("Semi-finals", "Semi-final").replace("Quarter-finals", "Quarter-final");
+  return count > 1 ? `${single} ${m.slot + 1}` : single;
 }
 
 function gameTile(t, m) {
   const win = C.winnerSide(m);
-  const g = m.stage === "group" ? ((t.groups || []).find((x) => x.id === m.group) || {}).name : (m.third ? "3rd place" : "");
   const meta = (m.stage === "group" ? [m.court] : [m.time ? formatTime(m.time) : "", m.court]).filter(Boolean).map(esc).join(" · ");
   const side = (s) => {
     const tid = C.resolveSource(t, m[s]);
@@ -231,13 +239,18 @@ function gameTile(t, m) {
   return `
     <article class="gtile status-${m.status}">
       <header class="gt-head">
-        <span class="gt-num">#${numbersFor(t)[m.id]}</span>
-        ${g ? `<span class="gt-tag">${esc(g)}</span>` : ""}
+        <span class="gt-tag">${esc(gameLabel(t, m))}</span>
         <span class="gt-meta">${meta}</span>
         ${m.status === "live" ? `<span class="gt-live"><span class="live-dot" aria-hidden="true"></span>Live</span>` : m.status === "final" ? `<span class="gt-final">FT</span>` : ""}
       </header>
       ${side("home")}${side("away")}
     </article>`;
+}
+
+// "Group A & Group B" — the groups playing in a column
+function groupNames(c) {
+  const names = [...new Set(c.matches.map((m) => m.groupName).filter(Boolean))];
+  return names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names[names.length - 1] : "Games";
 }
 
 function matchesTab(t) {
@@ -246,6 +259,8 @@ function matchesTab(t) {
   if (teamFilter) return teamTimeline(t, teamFilter, mine);
 
   const cols = C.roundColumns(t);
+  const gName = Object.fromEntries((t.groups || []).map((g) => [g.id, g.name]));
+  cols.forEach((c) => c.matches.forEach((m) => { m.groupName = gName[m.group] || ""; }));
   if (!cols.length) {
     return `<div class="empty"><h2>Schedule coming soon</h2><p>Check back closer to the day.</p></div>`;
   }
@@ -269,7 +284,12 @@ function matchesTab(t) {
             <section class="rcol ${c.stage === "ko" ? "is-ko" : ""} ${i === currentIdx ? "is-current" : ""}" data-col="${i}">
               <header class="rcol-head">
                 <h3>${c.stage === "group" && c.time ? esc(formatTime(c.time)) : esc(c.title)}</h3>
-                <p>${c.stage === "group" ? `${esc(c.title)}${together ? " · played at the same time" : ""}` : times.length ? esc(formatTime(times[0])) : ""}${c.stage === "ko" && times.length ? " · " : c.stage === "group" ? " · " : ""}${done}/${c.matches.length} played</p>
+                <p>${[
+                  c.stage === "group" && c.time ? esc(c.title) : "",
+                  c.stage === "ko" && times.length ? esc(formatTime(times[0])) : "",
+                  together ? `${esc(groupNames(c))} play at the same time` : "",
+                  `${done}/${c.matches.length} played`
+                ].filter(Boolean).join(" · ")}</p>
               </header>
               <div class="rcol-games">${c.matches.map((m) => gameTile(t, m)).join("")}</div>
             </section>`;
