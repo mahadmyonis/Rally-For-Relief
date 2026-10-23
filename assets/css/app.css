@@ -1428,3 +1428,54 @@ body.no-scroll { overflow: hidden; }
 .rslot + .rslot { padding-top: 14px; }
 .mslot-gap { height: 10px; }
 .mlist-title + .mslot-gap { display: none; }
+
+/* Standings while following a team */
+.stand-focus {
+  padding: 20px 22px;
+  margin-bottom: 22px;
+  border-radius: var(--radius);
+  background: radial-gradient(120% 140% at 100% 0%, rgba(212, 166, 58, 0.12), transparent 55%), var(--surface);
+  border: 1px solid rgba(212, 166, 58, 0.35);
+}
+.stand-focus-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.sf-pos, .sf-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  min-width: 74px;
+}
+.sf-pos { background: var(--gold); border-color: var(--gold); color: var(--black); }
+.sf-pos b, .sf-stat b { font-family: var(--font-display); font-weight: 800; font-size: 26px; line-height: 1; letter-spacing: -0.02em; }
+.sf-pos span, .sf-stat span { margin-top: 4px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; }
+.sf-outlook { margin-top: 14px; font-weight: 600; color: var(--grey); }
+.sf-outlook.is-good { color: var(--gold); }
+
+tr.is-focus td { background: rgba(212, 166, 58, 0.16); }
+tr.is-focus td.team { color: var(--gold); font-weight: 800; }
+tr.is-focus td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
+.you-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--black);
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+.matrix tr.is-focus th.team { color: var(--gold); }
+.matrix tr.is-focus th, .matrix tr.is-focus td { background-color: rgba(212, 166, 58, 0.14); }
+.matrix .is-focus-col { background-color: rgba(212, 166, 58, 0.1); }
+.matrix thead th.is-focus-col { color: var(--gold); }
+.show-groups { margin-top: 20px; text-align: center; }
+@media (max-width: 560px) {
+  .you-tag { display: none; }
+  .sf-pos, .sf-stat { min-width: 0; flex: 1 1 0; padding: 10px; }
+  .sf-pos b, .sf-stat b { font-size: 22px; }
+}
+.sf-pos span, .sf-stat span { white-space: nowrap; }

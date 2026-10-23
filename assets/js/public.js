@@ -14,6 +14,8 @@ let tab = (location.hash || "").slice(1);
 let teamFilter = "";
 // When following a team: their "games" timeline or their "players"
 let teamView = "games";
+// Standings while following a team: just their group, unless they ask for all
+let showAllGroups = false;
 // Horizontal position in the round columns; null until the first render
 let roundsLeft = null;
 
@@ -334,20 +336,21 @@ function matchesTab(t) {
 function resultsGrid(t, g, rows) {
   const games = C.matchList(t).filter((m) => m.stage === "group" && m.group === g.id);
   const cell = (a, b) => {
+    const col = teamFilter && b === teamFilter && a !== teamFilter ? " is-focus-col" : "";
     if (a === b) return `<td class="mx-self" aria-hidden="true"></td>`;
     const m = games.find((x) => (x.home.id === a && x.away.id === b) || (x.home.id === b && x.away.id === a));
-    if (!m || m.status === "scheduled" || !Number.isFinite(m.hs)) return `<td class="mx-empty">·</td>`;
+    if (!m || m.status === "scheduled" || !Number.isFinite(m.hs)) return `<td class="mx-empty${col}">·</td>`;
     const mine = m.home.id === a ? m.hs : m.as;
     const theirs = m.home.id === a ? m.as : m.hs;
     const cls = m.status === "live" ? "mx-live" : mine > theirs ? "mx-w" : mine < theirs ? "mx-l" : "mx-d";
-    return `<td class="${cls}">${mine}–${theirs}</td>`;
+    return `<td class="${cls}${col}">${mine}–${theirs}</td>`;
   };
   return `
     <div class="matrix-wrap">
       <p class="matrix-title">Results grid <span>— read across: each row's score first</span></p>
       <div class="table-wrap">
         <table class="matrix">
-          <thead><tr><th class="team"></th>${rows.map((r, i) => `<th class="num" title="${esc(r.name)}">${i + 1}</th>`).join("")}</tr></thead>
+          <thead><tr><th class="team"></th>${rows.map((r, i) => `<th class="num ${teamFilter === r.id ? "is-focus-col" : ""}" title="${esc(r.name)}">${i + 1}</th>`).join("")}</tr></thead>
           <tbody>${rows.map((r, i) => `
             <tr class="${teamFilter === r.id ? "is-focus" : ""}"><th class="team"><span class="mx-n">${i + 1}</span>${esc(r.name)}</th>${rows.map((c) => cell(r.id, c.id)).join("")}</tr>`).join("")}
           </tbody>
@@ -362,10 +365,41 @@ function standingsTab(t) {
   const pts = (n) => `${n} pt${n === 1 ? "" : "s"}`;
   const rules = `<p class="rules-note">Win ${pts(s.win)}${draws ? ` · Draw ${pts(s.draw)}` : ""} · Loss ${pts(s.loss)}.
     Ties are split by score difference (+/−), then total scored, then the result between the tied teams.</p>`;
-  return (t.groups || []).map((g) => {
+  const myGroup = teamFilter ? (t.groups || []).find((g) => g.teamIds.includes(teamFilter)) : null;
+  const shown = myGroup && !showAllGroups ? [myGroup] : (t.groups || []);
+  const hasKoAll = C.matchList(t).some((m) => m.stage === "ko");
+
+  // Where the followed team stands, in one card
+  let focus = "";
+  if (myGroup) {
+    const rows = C.computeStandings(t, myGroup);
+    const i = rows.findIndex((r) => r.id === teamFilter);
+    const r = rows[i];
+    const adv = myGroup.advance || 0;
+    const done = C.groupComplete(t, myGroup.id);
+    let outlook = "";
+    if (hasKoAll && adv && r.p) {
+      if (done) outlook = i < adv ? "✓ Through to the knockouts" : "Out of the knockouts";
+      else outlook = i < adv ? `In the top ${adv} — on course for the knockouts` : `Outside the top ${adv} right now`;
+    }
+    focus = `
+      <section class="stand-focus">
+        <p class="eyebrow">Following</p>
+        <h3 class="team-sum-name">${esc(r.name)}</h3>
+        <div class="stand-focus-row">
+          <div class="sf-pos"><b>${r.p ? C.ordinal(i + 1) : "–"}</b><span>${esc(myGroup.name)}</span></div>
+          <div class="sf-stat"><b>${r.pts}</b><span>pts</span></div>
+          <div class="sf-stat"><b>${r.w}–${r.l}${draws && r.d ? `–${r.d}` : ""}</b><span>${draws ? "W–L–D" : "W–L"}</span></div>
+          <div class="sf-stat"><b>${r.diff > 0 ? "+" : ""}${r.diff}</b><span>+/−</span></div>
+        </div>
+        ${outlook ? `<p class="sf-outlook ${outlook.startsWith("✓") ? "is-good" : ""}">${outlook}</p>` : ""}
+      </section>`;
+  }
+
+  return focus + shown.map((g) => {
     const rows = C.computeStandings(t, g);
     const adv = g.advance || 0;
-    const hasKo = C.matchList(t).some((m) => m.stage === "ko");
+    const hasKo = hasKoAll;
     return `
       <section class="standings">
         <h3 class="round-title">${esc(g.name)}${C.groupComplete(t, g.id) ? ` <span class="chip chip-final">Complete</span>` : ""}</h3>
@@ -381,7 +415,7 @@ function standingsTab(t) {
             </tr></thead>
             <tbody>${rows.map((r, i) => `
               <tr class="${hasKo && i < adv ? "advances" : ""} ${teamFilter === r.id ? "is-focus" : ""}">
-                <td class="num">${i + 1}</td><td class="team">${esc(r.name)}</td>
+                <td class="num">${i + 1}</td><td class="team">${esc(r.name)}${teamFilter === r.id ? `<span class="you-tag">Following</span>` : ""}</td>
                 <td class="num">${r.p}</td><td class="num">${r.w}</td>
                 ${draws ? `<td class="num">${r.d}</td>` : ""}
                 <td class="num">${r.l}</td><td class="num hide-sm">${r.f}</td><td class="num hide-sm">${r.a}</td>
@@ -393,7 +427,10 @@ function standingsTab(t) {
         ${hasKo && adv ? `<p class="legend"><span class="legend-bar" aria-hidden="true"></span>Top ${adv} go through to the knockouts</p>` : ""}
         ${rows.length > 2 ? resultsGrid(t, g, rows) : ""}
       </section>`;
-  }).join("") + rules;
+  }).join("") +
+    (myGroup && (t.groups || []).length > 1
+      ? `<p class="show-groups"><button type="button" class="btn btn-ghost btn-sm" data-allgroups>${showAllGroups ? `Show only ${esc(myGroup.name)}` : "Show all groups"}</button></p>`
+      : "") + rules;
 }
 
 function bracketMatch(t, m) {
@@ -515,6 +552,9 @@ function renderTournament(t) {
     history.replaceState(null, "", `#${tab}`);
     renderTournament(current);
   }));
+  const allBtn = view.querySelector("[data-allgroups]");
+  if (allBtn) allBtn.addEventListener("click", () => { showAllGroups = !showAllGroups; renderTournament(current); });
+
   view.querySelectorAll("[data-tview]").forEach((b) => b.addEventListener("click", () => {
     teamView = b.dataset.tview;
     renderTournament(current);
@@ -522,6 +562,7 @@ function renderTournament(t) {
   view.querySelectorAll("[data-follow]").forEach((b) => b.addEventListener("click", () => {
     teamFilter = b.dataset.follow;
     teamView = "players";
+    showAllGroups = false;
     tab = "matches";
     history.replaceState(null, "", "#matches");
     try { localStorage.setItem(`r4r-follow-${id}`, teamFilter); } catch { /* ignore */ }
@@ -534,6 +575,7 @@ function renderTournament(t) {
   if (sel) sel.addEventListener("change", () => {
     teamFilter = sel.value;
     teamView = "games";
+    showAllGroups = false;
     try { localStorage.setItem(`r4r-follow-${id}`, teamFilter); } catch { /* ignore */ }
     renderTournament(current);
   });
