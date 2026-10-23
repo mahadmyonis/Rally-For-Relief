@@ -255,6 +255,18 @@ function rosterCard(t, teamId, { big = false } = {}) {
 }
 
 function teamsTab(t) {
+  if (teamFilter && t.teams[teamFilter] && !showAllGroups) {
+    const group = (t.groups || []).find((g) => g.teamIds.includes(teamFilter));
+    const others = group ? group.teamIds.filter((x) => x !== teamFilter) : [];
+    return `
+      ${rosterCard(t, teamFilter, { big: true })}
+      ${others.length ? `
+        <section class="roster-section">
+          <h3 class="round-title">Also in ${esc(group.name)}</h3>
+          <div class="roster-grid">${others.map((x) => rosterCard(t, x)).join("")}</div>
+        </section>` : ""}
+      <p class="show-groups"><button type="button" class="btn btn-ghost btn-sm" data-allgroups>Show all teams</button></p>`;
+  }
   const groups = (t.groups || []).filter((g) => g.teamIds.length);
   const sections = groups.length
     ? groups.map((g) => ({ title: `${g.name}`, ids: g.teamIds }))
@@ -265,7 +277,8 @@ function teamsTab(t) {
       ${sec.title ? `<h3 class="round-title">${esc(sec.title)} <span class="muted">rosters</span></h3>` : ""}
       <div class="roster-grid">${sec.ids.map((id) => rosterCard(t, id)).join("")}</div>
     </section>`).join("") +
-    (anyCaptain ? `<p class="legend"><span class="cap-badge" aria-hidden="true">C</span> Team captain</p>` : "");
+    (anyCaptain ? `<p class="legend"><span class="cap-badge" aria-hidden="true">C</span> Team captain</p>` : "") +
+    (teamFilter ? `<p class="show-groups"><button type="button" class="btn btn-ghost btn-sm" data-allgroups>Show only ${esc(C.teamName(t, teamFilter))}</button></p>` : "");
 }
 
 function gameTile(t, m) {
@@ -436,24 +449,82 @@ function standingsTab(t) {
 function bracketMatch(t, m) {
   if (!m) return "";
   const win = C.winnerSide(m);
+  const myGroup = teamFilter ? (t.groups || []).find((g) => g.teamIds.includes(teamFilter)) : null;
+  let mine = false, maybe = false;
   const side = (s) => {
     const src = m[s];
     const bye = src && src.t === "bye";
     const tid = C.resolveSource(t, src);
+    // Their group's places in the bracket, before the group is decided
+    // Their possible places, before they're decided: their group's spots, or
+    // the winner/loser of a game they're still playing
+    const feeder = src && (src.t === "winner" || src.t === "loser") && t.matches[src.m];
+    const could = !tid && src && (
+      (myGroup && src.t === "group" && src.g === myGroup.id) ||
+      (feeder && !C.winnerSide(feeder) && [C.resolveSource(t, feeder.home), C.resolveSource(t, feeder.away)].includes(teamFilter)));
+    if (teamFilter && tid === teamFilter) mine = true;
+    if (could) maybe = true;
     const score = !bye && m.status !== "scheduled" && Number.isFinite(m[s === "home" ? "hs" : "as"]) ? m[s === "home" ? "hs" : "as"] : "";
-    return `<div class="b-team ${win === s ? "is-winner" : ""} ${bye || !tid ? "is-tbd" : ""}">
+    return `<div class="b-team ${win === s ? "is-winner" : ""} ${bye || !tid ? "is-tbd" : ""} ${teamFilter && tid === teamFilter ? "is-mine" : ""} ${could ? "is-maybe" : ""}">
       <span>${esc(C.sourceLabel(t, src))}</span><span class="b-score">${score}</span></div>`;
   };
-  return `<div class="b-match ${m.status === "live" ? "is-live" : ""}">
-    ${m.time || m.court ? `<div class="b-meta">${esc([formatTime(m.time), m.court].filter(Boolean).join(" · "))}</div>` : ""}
-    ${side("home")}${side("away")}</div>`;
+  const rows = side("home") + side("away");
+  const focus = teamFilter ? (mine ? "is-mine" : maybe ? "is-maybe" : "is-dim") : "";
+  return `<div class="b-match ${m.status === "live" ? "is-live" : ""} ${focus}">
+    <div class="b-meta">${esc([gameLabel(t, m), formatTime(m.time), m.court].filter(Boolean).join(" · "))}</div>
+    ${rows}</div>`;
+}
+
+// The followed team's knockout story: next game, result, or what they need
+function bracketFocus(t, teamId) {
+  const name = C.teamName(t, teamId);
+  const ko = C.scheduleList(t).filter((m) => m.stage === "ko");
+  const theirs = ko.filter((m) => [C.resolveSource(t, m.home), C.resolveSource(t, m.away)].includes(teamId));
+  const group = (t.groups || []).find((g) => g.teamIds.includes(teamId));
+  const opp = (m) => C.sourceLabel(t, C.resolveSource(t, m.home) === teamId ? m.away : m.home);
+  const when = (m) => [m.time ? formatTime(m.time) : "", m.court].filter(Boolean).map(esc).join(" · ");
+  let headline = "", detail = "";
+  if (C.champion(t) === teamId) {
+    headline = "🏆 Champions";
+  } else if (theirs.length) {
+    const lost = theirs.find((m) => { const w = C.winnerSide(m); return w && C.resolveSource(t, m[w]) !== teamId; });
+    const next = theirs.find((m) => m.status !== "final");
+    if (next) {
+      headline = next.status === "live" ? `Playing now: ${esc(gameLabel(t, next))}` : `Next: ${esc(gameLabel(t, next))}`;
+      detail = `vs <strong>${esc(opp(next))}</strong>${when(next) ? ` · ${when(next)}` : ""}`;
+    } else if (lost) {
+      const label = gameLabel(t, lost);
+      headline = label === "Final" ? "🥈 Runners-up" : lost.third ? "4th place" : `Knocked out in the ${esc(label.replace(/ \d+$/, ""))}`;
+      const v = C.resolveSource(t, lost.home) === teamId;
+      detail = `Lost ${v ? lost.hs : lost.as}–${v ? lost.as : lost.hs} to <strong>${esc(opp(lost))}</strong>`;
+    } else {
+      const won3 = theirs.find((m) => m.third);
+      headline = won3 ? "🥉 Third place" : "Through to the knockouts";
+    }
+  } else if (C.possibleKnockouts(t, teamId).length) {
+    const first = C.possibleKnockouts(t, teamId)[0];
+    headline = "Not in the bracket yet";
+    detail = `Finish in the top ${group.advance} of ${esc(group.name)} to reach the ${esc(C.stageLabel(t, first))}${first.time ? ` at ${esc(formatTime(first.time))}` : ""}. Their possible places are outlined below.`;
+  } else if (ko.length) {
+    headline = "Didn't make the knockouts";
+  } else {
+    headline = "No bracket yet";
+  }
+  return `
+    <section class="stand-focus">
+      <p class="eyebrow">Following</p>
+      <h3 class="team-sum-name">${esc(name)}</h3>
+      <p class="bf-head">${headline}</p>
+      ${detail ? `<p class="bf-detail">${detail}</p>` : ""}
+    </section>`;
 }
 
 function bracketTab(t) {
   const ko = C.knockoutRounds(t);
   return `
+    ${teamFilter ? bracketFocus(t, teamFilter) : ""}
     <div class="bracket-scroll">
-      <div class="bracket" style="--rounds:${ko.rounds.length}">
+      <div class="bracket ${teamFilter ? "is-focused" : ""}" style="--rounds:${ko.rounds.length}">
         ${ko.rounds.map((r) => `
           <div class="b-round">
             <h3 class="b-round-title">${esc(r.name)}</h3>
@@ -479,7 +550,8 @@ function renderTournament(t) {
   if (Object.keys(t.teams || {}).length) tabs.push(["teams", "Teams"]);
   if (!tabs.some(([k]) => k === tab)) tab = "matches";
 
-  const live = C.scheduleList(t).filter((m) => m.status === "live");
+  const live = C.scheduleList(t).filter((m) => m.status === "live" &&
+    (!teamFilter || [C.resolveSource(t, m.home), C.resolveSource(t, m.away)].includes(teamFilter)));
   const champId = C.champion(t);
   const teams = C.sortedTeams(t);
   if (teamFilter && !t.teams[teamFilter]) teamFilter = "";
@@ -549,6 +621,7 @@ function renderTournament(t) {
 
   view.querySelectorAll("[data-tab]").forEach((b) => b.addEventListener("click", () => {
     tab = b.dataset.tab;
+    showAllGroups = false;
     history.replaceState(null, "", `#${tab}`);
     renderTournament(current);
   }));

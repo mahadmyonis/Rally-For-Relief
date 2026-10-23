@@ -1479,3 +1479,13 @@ tr.is-focus td:first-child { box-shadow: inset 4px 0 0 var(--gold); }
   .sf-pos b, .sf-stat b { font-size: 22px; }
 }
 .sf-pos span, .sf-stat span { white-space: nowrap; }
+
+/* Bracket while following a team */
+.bf-head { margin-top: 10px; font-family: var(--font-display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; color: var(--gold); }
+.bf-detail { margin-top: 6px; color: var(--cream); font-size: 16px; }
+.b-meta { padding: 6px 12px 0; }
+.bracket.is-focused .b-match.is-dim, .third-place .b-match.is-dim { opacity: 0.4; }
+.b-match.is-mine { border-color: var(--gold); box-shadow: 0 0 0 1px rgba(212, 166, 58, 0.4); }
+.b-match.is-maybe { border-style: dashed; border-color: rgba(212, 166, 58, 0.6); }
+.b-team.is-mine { color: var(--gold); font-weight: 800; background: rgba(212, 166, 58, 0.1); }
+.b-team.is-maybe { color: var(--gold); }
