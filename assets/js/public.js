@@ -247,20 +247,12 @@ function gameTile(t, m) {
     </article>`;
 }
 
-// "Group A & Group B" — the groups playing in a column
-function groupNames(c) {
-  const names = [...new Set(c.matches.map((m) => m.groupName).filter(Boolean))];
-  return names.length > 1 ? names.slice(0, -1).join(", ") + " & " + names[names.length - 1] : "Games";
-}
-
 function matchesTab(t) {
   const mine = (m) => [C.resolveSource(t, m.home), C.resolveSource(t, m.away)].includes(teamFilter);
   // Following a team: a numbered timeline of their games, in play order
   if (teamFilter) return teamTimeline(t, teamFilter, mine);
 
   const cols = C.roundColumns(t);
-  const gName = Object.fromEntries((t.groups || []).map((g) => [g.id, g.name]));
-  cols.forEach((c) => c.slots.forEach((sl) => sl.matches.forEach((m) => { m.groupName = gName[m.group] || ""; })));
   if (!cols.length) {
     return `<div class="empty"><h2>Schedule coming soon</h2><p>Check back closer to the day.</p></div>`;
   }
@@ -278,17 +270,16 @@ function matchesTab(t) {
       <div class="rounds">
         ${cols.map((c, i) => {
           const times = c.matches.map((m) => m.time).filter(Boolean).sort();
-          const done = c.matches.filter((m) => m.status === "final").length;
           const span = times.length ? esc(formatTime(times[0])) + (times[times.length - 1] !== times[0] ? `–${esc(formatTime(times[times.length - 1]))}` : "") : "";
           return `
             <section class="rcol ${c.stage === "ko" ? "is-ko" : ""} ${i === currentIdx ? "is-current" : ""}" data-col="${i}">
               <header class="rcol-head">
                 <h3>${esc(c.title)}</h3>
-                <p>${[span, `${done}/${c.matches.length} played`].filter(Boolean).join(" · ")}</p>
+                ${span ? `<p>${span}</p>` : ""}
               </header>
               ${c.stage === "group" ? `<div class="rcol-slots">${c.slots.map((sl) => `
                 <div class="rslot">
-                  <p class="rslot-head"><b>Slot ${sl.n}</b>${sl.time ? ` · ${esc(formatTime(sl.time))}` : ""}${sl.matches.length > 1 ? `<span>${esc(groupNames({ matches: sl.matches }))} at the same time</span>` : ""}</p>
+                  <p class="rslot-head"><b>Slot ${sl.n}</b>${sl.time ? ` · ${esc(formatTime(sl.time))}` : ""}</p>
                   <div class="rcol-games">${sl.matches.map((m) => gameTile(t, m)).join("")}</div>
                 </div>`).join("")}</div>`
               : `<div class="rcol-games">${c.matches.map((m) => gameTile(t, m)).join("")}</div>`}
