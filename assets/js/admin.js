@@ -372,7 +372,7 @@ function renderScores(t, panel) {
     </div>
     ${cols.length ? cols.map((c) => `
       <section class="mlist-round">
-        <h3 class="mlist-title">${esc(c.title)} <span>${c.matches.filter((m) => m.status === "final").length}/${c.matches.length}</span></h3>
+        <h3 class="mlist-title">${c.stage === "group" && c.time ? `${esc(formatTime(c.time))} <small>${esc(c.title)}</small>` : esc(c.title)} <span>${c.matches.filter((m) => m.status === "final").length}/${c.matches.length}</span></h3>
         <div class="mlist">${c.shown.map(row).join("")}</div>
       </section>`).join("")
     : `<p class="muted-sm">Nothing here — ${scoreFilter === "live" ? "no games are live right now" : scoreFilter === "done" ? "no games are finished yet" : "every game is finished 🎉"}.</p>`}
@@ -729,7 +729,9 @@ function renderFormat(t, panel) {
         ${!groups.length ? `<label class="check"><input type="checkbox" id="ko-shuffle"> Random draw instead of seeding</label>` : ""}
         <div><button class="btn btn-accent" id="make-ko" ${groups.length && !advance ? "disabled" : ""}>Create bracket</button></div>
       `}
-    </section>`;
+    </section>
+
+    ${matches.length ? scheduleSection(t, groups) : ""}`;
 
   const advInput = panel.querySelector("#advance");
   if (groups.length && advInput) {
@@ -815,6 +817,73 @@ function renderFormat(t, panel) {
     const patch = {};
     koMatches.forEach((m) => { patch[`matches.${m.id}`] = DELETE; });
     save(patch, "Bracket removed");
+  });
+
+  wireSchedule(t, panel);
+}
+
+// --- Schedule: times and courts for every game -----------------------------------
+
+function scheduleSection(t, groups) {
+  const games = C.scheduleList(t);
+  const timed = games.filter((m) => m.time).length;
+  const first = games.map((m) => m.time).filter(Boolean).sort()[0] || "10:00";
+  const saved = (t.settings && t.settings.schedule) || {};
+  const mode = saved.mode || (groups.length > 1 ? "perGroup" : "shared");
+  return `
+    <section class="panel" id="schedule-panel">
+      <h2 class="panel-title"><span class="step-badge">3</span> Schedule</h2>
+      <p>Set a time and court for every game in one go. You can still change any single game afterwards.</p>
+      <div class="field-row">
+        <label class="field"><span>First game at</span><input type="time" id="sch-start" value="${esc(saved.start || first)}"></label>
+        <label class="field"><span>Minutes per game</span><input type="number" id="sch-min" min="5" max="180" step="5" value="${Number(saved.minutes) || 25}"></label>
+      </div>
+      <div class="field-row">
+        <label class="field grow"><span>Courts</span>
+          <select id="sch-mode">
+            ${groups.length > 1 ? `<option value="perGroup" ${mode === "perGroup" ? "selected" : ""}>One court per group (A → Court 1, B → Court 2)</option>` : ""}
+            <option value="shared" ${mode === "shared" ? "selected" : ""}>Share courts between everyone</option>
+          </select>
+        </label>
+        <label class="field" id="sch-courts-wrap" ${mode === "perGroup" ? "hidden" : ""}><span>Number of courts</span><input type="number" id="sch-courts" min="1" max="12" value="${Number(saved.courts) || 2}"></label>
+      </div>
+      <p class="muted-sm" id="sch-hint">${mode === "perGroup"
+        ? "Each group plays on its own court, one game at a time — so game 1 of every group starts together, then game 2, and so on. Nobody plays twice in a row where it can be avoided. Knockouts follow straight after."
+        : "Games are spread across the courts so no team is booked twice at once, and nobody plays twice in a row where it can be avoided. Knockouts follow straight after."}</p>
+      <p class="muted-sm">${timed ? `${timed} of ${games.length} games have a time now — this replaces them.` : "No games have times yet."}</p>
+      <div><button class="btn btn-accent" id="sch-go">Set times &amp; courts</button></div>
+    </section>`;
+}
+
+function wireSchedule(t, panel) {
+  const go = panel.querySelector("#sch-go");
+  if (!go) return;
+  const modeSel = panel.querySelector("#sch-mode");
+  modeSel.addEventListener("change", () => {
+    panel.querySelector("#sch-courts-wrap").hidden = modeSel.value === "perGroup";
+    panel.querySelector("#sch-hint").textContent = modeSel.value === "perGroup"
+      ? "Each group plays on its own court, one game at a time — so game 1 of every group starts together, then game 2, and so on. Nobody plays twice in a row where it can be avoided. Knockouts follow straight after."
+      : "Games are spread across the courts so no team is booked twice at once, and nobody plays twice in a row where it can be avoided. Knockouts follow straight after.";
+  });
+  go.addEventListener("click", () => {
+    const opts = {
+      start: panel.querySelector("#sch-start").value || "10:00",
+      minutes: Math.max(5, Math.floor(Number(panel.querySelector("#sch-min").value) || 25)),
+      mode: modeSel.value,
+      courts: Math.max(1, Math.floor(Number(panel.querySelector("#sch-courts").value) || 2))
+    };
+    const started = C.matchList(t).some((m) => m.status !== "scheduled");
+    if (C.scheduleList(t).some((m) => m.time || m.court) &&
+        !confirm(`Replace the time and court of every game?${started ? "\n\nScores already entered are kept." : ""}`)) return;
+    const plan = C.autoSchedule(t, opts);
+    const patch = { "settings.schedule": opts };
+    Object.entries(plan).forEach(([mid, p]) => {
+      patch[`matches.${mid}.time`] = p.time;
+      patch[`matches.${mid}.court`] = p.court;
+      patch[`matches.${mid}.seq`] = p.seq;
+    });
+    const last = Object.values(plan).map((p) => p.time).sort().pop();
+    save(patch, `Schedule set — ${Object.keys(plan).length} games, last one at ${formatTime(last)}`);
   });
 }
 

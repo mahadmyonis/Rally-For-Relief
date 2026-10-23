@@ -322,19 +322,85 @@ test("dependent games: a group game feeds the whole bracket; a semi feeds the fi
   assert.deepEqual(C.dependentMatches(t, ko.rounds[1].matches[0].id), []);
 });
 
-test("round columns: group rounds then knockout rounds, third place with the final, no byes", () => {
+test("columns: group stage in slots (each group's game N together), then knockout rounds", () => {
   const t = makeTournament(["A", "B", "C", "D", "E", "F"]);
   addGroups(t, 2, 2);
   Object.assign(t.matches, C.buildKnockout(C.seedsFromGroups(t.groups, 2), { thirdPlace: true }));
   const cols = C.roundColumns(t);
-  assert.deepEqual(cols.map((c) => c.title), ["Round 1", "Round 2", "Round 3", "Semi-finals", "Final"]);
+  // 3 teams per group → 3 games each → 3 slots of 2 games (one per group), then semis and final
+  assert.deepEqual(cols.map((c) => c.title), ["Slot 1", "Slot 2", "Slot 3", "Semi-finals", "Final"]);
+  cols.slice(0, 3).forEach((c) => assert.deepEqual(c.matches.map((m) => m.group).sort(), ["g0", "g1"]));
   assert.equal(cols.reduce((n, c) => n + c.matches.length, 0), C.scheduleList(t).length);
-  assert.equal(cols[4].matches.length, 2);
   assert.ok(cols[4].matches[1].third, "third place after the final");
 
   const k = makeTournament(["A", "B", "C"]);
   Object.assign(k.matches, C.buildKnockout(Object.keys(k.teams).map((id) => ({ t: "team", id }))));
   assert.deepEqual(C.roundColumns(k).map((c) => [c.title, c.matches.length]), [["Semi-finals", 1], ["Final", 1]]);
+});
+
+test("schedule, one court per group: game N of every group at the same time, own court", () => {
+  const t = makeTournament(Array.from({ length: 10 }, (_, i) => `T${i}`));
+  addGroups(t, 2, 2);
+  Object.assign(t.matches, C.buildKnockout(C.seedsFromGroups(t.groups, 2), { thirdPlace: true }));
+  const plan = C.autoSchedule(t, { start: "10:00", minutes: 25, mode: "perGroup" });
+  Object.entries(plan).forEach(([id, p]) => Object.assign(t.matches[id], p));
+  const order = C.groupOrder(t);
+  const group = C.matchList(t).filter((m) => m.stage === "group");
+  group.forEach((m) => assert.equal(m.court, m.group === "g0" ? "Court 1" : "Court 2"));
+  // Same game number → same time across groups; times go 10:00, 10:25, 10:50…
+  for (let n = 1; n <= 10; n++) {
+    const games = group.filter((m) => order[m.id].n === n);
+    assert.equal(games.length, 2, `two games in slot ${n}`);
+    assert.equal(games[0].time, games[1].time);
+  }
+  assert.equal(group.find((m) => order[m.id].n === 1).time, "10:00");
+  assert.equal(group.find((m) => order[m.id].n === 2).time, "10:25");
+  // Nobody on two courts at once, and the columns line up with the slots
+  const cols = C.roundColumns(t);
+  cols.forEach((c) => {
+    const teams = c.matches.flatMap((m) => [m.home.id, m.away.id]).filter(Boolean);
+    assert.equal(new Set(teams).size, teams.length);
+  });
+  assert.equal(cols.filter((c) => c.stage === "group").length, 10);
+  // Knockouts after the last group slot (10 slots → semis at 14:10, final + 3rd at 14:35)
+  const ko = C.knockoutRounds(t);
+  ko.rounds[0].matches.forEach((m) => assert.equal(m.time, "14:10"));
+  assert.equal(ko.rounds[1].matches[0].time, "14:35");
+  assert.equal(ko.third.time, "14:35");
+  assert.notEqual(ko.rounds[1].matches[0].court, ko.third.court);
+  assert.match(C.stageLabel(t, group.find((m) => m.group === "g0" && order[m.id].n === 3)), /Group A · Game 3 of 10/);
+});
+
+test("schedule, one court per group: nobody plays two games in a row when avoidable", () => {
+  const t = makeTournament(Array.from({ length: 10 }, (_, i) => `T${i}`));
+  addGroups(t, 2);
+  const plan = C.autoSchedule(t, { mode: "perGroup" });
+  Object.entries(plan).forEach(([id, p]) => Object.assign(t.matches[id], p));
+  t.groups.forEach((g) => {
+    const seq = C.matchList(t).filter((m) => m.group === g.id).sort((a, b) => a.time.localeCompare(b.time));
+    let backToBack = 0;
+    for (let i = 1; i < seq.length; i++) {
+      const prev = [seq[i - 1].home.id, seq[i - 1].away.id];
+      if ([seq[i].home.id, seq[i].away.id].some((x) => prev.includes(x))) backToBack++;
+    }
+    assert.ok(backToBack <= 1, `${g.name}: ${backToBack} back-to-back games`);
+  });
+});
+
+test("schedule, shared courts: courts filled, nobody double-booked", () => {
+  const t = makeTournament(Array.from({ length: 8 }, (_, i) => `T${i}`));
+  addGroups(t, 2);
+  const plan = C.autoSchedule(t, { start: "09:00", minutes: 20, mode: "shared", courts: 3 });
+  Object.entries(plan).forEach(([id, p]) => Object.assign(t.matches[id], p));
+  const bySlot = {};
+  C.matchList(t).forEach((m) => { (bySlot[m.time] = bySlot[m.time] || []).push(m); });
+  Object.values(bySlot).forEach((games) => {
+    assert.ok(games.length <= 3);
+    const teams = games.flatMap((m) => [m.home.id, m.away.id]);
+    assert.equal(new Set(teams).size, teams.length);
+    assert.equal(new Set(games.map((m) => m.court)).size, games.length);
+  });
+  assert.equal(C.matchList(t).every((m) => m.time && m.court), true);
 });
 
 test("results: free scoring, draws and knockout ties", () => {

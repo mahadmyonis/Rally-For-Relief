@@ -326,6 +326,7 @@ export function matchCode(t, id) {
 export function scheduleList(t) {
   const groupIndex = {};
   (t.groups || []).forEach((g, i) => { groupIndex[g.id] = i; });
+  const order = groupOrder(t);
   return matchList(t)
     .filter((m) => !isByeMatch(m))
     .sort((a, b) => {
@@ -333,7 +334,10 @@ export function scheduleList(t) {
       if (a.time && !b.time) return -1;
       if (!a.time && b.time) return 1;
       if (a.stage !== b.stage) return a.stage === "group" ? -1 : 1;
-      return a.round - b.round || (groupIndex[a.group] ?? 0) - (groupIndex[b.group] ?? 0) || a.slot - b.slot || a.id.localeCompare(b.id);
+      if (a.stage === "group") {
+        return (order[a.id]?.n ?? 0) - (order[b.id]?.n ?? 0) || (groupIndex[a.group] ?? 0) - (groupIndex[b.group] ?? 0) || a.id.localeCompare(b.id);
+      }
+      return a.round - b.round || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot || a.id.localeCompare(b.id);
     });
 }
 
@@ -343,7 +347,21 @@ export function stageLabel(t, m) {
     return roundName(m.rounds || m.round, m.round);
   }
   const g = (t.groups || []).find((x) => x.id === m.group);
-  return `${g ? g.name : "Group"} · Round ${m.round}`;
+  const o = groupOrder(t)[m.id];
+  return `${g ? g.name : "Group"}${o ? ` · Game ${o.n} of ${o.of}` : ""}`;
+}
+
+// Each group's games in the order that group plays them (game 1, 2, 3…).
+// Uses the scheduled times when there are some, otherwise the planned order.
+export function groupOrder(t) {
+  const out = {};
+  const all = matchList(t);
+  (t.groups || []).forEach((g) => {
+    const ms = all.filter((m) => m.stage === "group" && m.group === g.id && !isByeMatch(m))
+      .sort((a, b) => (a.time || "").localeCompare(b.time || "") || (a.seq ?? a.round * 100) - (b.seq ?? b.round * 100) || a.id.localeCompare(b.id));
+    ms.forEach((m, i) => { out[m.id] = { n: i + 1, of: ms.length }; });
+  });
+  return out;
 }
 
 export function champion(t) {
@@ -387,26 +405,118 @@ export function dependentMatches(t, matchId) {
 
 // --- Rounds, results and match-day helpers ----------------------------------------
 
-// Columns for a bracket-style view: group rounds first, then each knockout
-// round (the third-place game sits with the final). Byes are left out.
+// Columns for a bracket-style view. The group stage is split into time
+// slots — the games played at the same time, one per court — then each
+// knockout round follows (the third-place game sits with the final).
 export function roundColumns(t) {
   const list = scheduleList(t);
+  const group = list.filter((m) => m.stage === "group");
+  const ko = list.filter((m) => m.stage === "ko");
+  const order = groupOrder(t);
+  const timed = group.length > 0 && group.every((m) => m.time);
   const cols = [];
   const byKey = new Map();
-  const add = (key, title, stage, m) => {
-    if (!byKey.has(key)) { const c = { key, title, stage, matches: [] }; byKey.set(key, c); cols.push(c); }
+  const add = (key, col, m) => {
+    if (!byKey.has(key)) { byKey.set(key, { key, matches: [], ...col }); cols.push(byKey.get(key)); }
     byKey.get(key).matches.push(m);
   };
-  const groupIndex = {};
-  (t.groups || []).forEach((g, i) => { groupIndex[g.id] = i; });
-  list.filter((m) => m.stage === "group").sort((a, b) => a.round - b.round).forEach((m) => add(`g${m.round}`, `Round ${m.round}`, "group", m));
-  list.filter((m) => m.stage === "ko").sort((a, b) => a.round - b.round || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot)
-    .forEach((m) => add(`k${m.round}`, roundName(m.rounds || m.round, m.round), "ko", m));
-  const timeSort = (a, b) => (a.time && b.time && a.time !== b.time ? a.time.localeCompare(b.time) : 0) ||
-    (a.stage === "group" ? (groupIndex[a.group] ?? 0) - (groupIndex[b.group] ?? 0) : 0) ||
-    (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot;
-  cols.forEach((c) => c.matches.sort(timeSort));
+  group.forEach((m) => {
+    const k = timed ? m.time : order[m.id]?.n ?? m.round;
+    add(`s${k}`, { title: `Slot ${timed ? 0 : k}`, time: timed ? m.time : "", stage: "group" }, m);
+  });
+  cols.forEach((c, i) => { c.title = `Slot ${i + 1}`; c.slot = i + 1; });
+  ko.sort((a, b) => a.round - b.round || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot)
+    .forEach((m) => add(`k${m.round}`, { title: roundName(m.rounds || m.round, m.round), time: "", stage: "ko" }, m));
+  const courtSort = (a, b) => (a.court || "").localeCompare(b.court || "", undefined, { numeric: true }) || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot;
+  cols.forEach((c) => {
+    c.matches.sort((a, b) => (a.time || "").localeCompare(b.time || "") || courtSort(a, b));
+    if (c.stage === "ko") c.time = c.matches.map((m) => m.time).filter(Boolean).sort()[0] || "";
+  });
   return cols;
+}
+
+// --- Automatic schedule --------------------------------------------------------
+
+const toMin = (hhmm) => { const [h, m] = String(hhmm || "10:00").split(":").map(Number); return (h || 0) * 60 + (m || 0); };
+const toHHMM = (mins) => { const d = ((mins % 1440) + 1440) % 1440; return `${String(Math.floor(d / 60)).padStart(2, "0")}:${String(d % 60).padStart(2, "0")}`; };
+const teamsOf = (m) => [m.home && m.home.id, m.away && m.away.id].filter(Boolean);
+
+// Order a group's games so nobody plays twice in a row when it can be avoided
+function restfulOrder(games) {
+  const left = games.slice();
+  const out = [];
+  let prev = new Set();
+  while (left.length) {
+    let i = left.findIndex((m) => !teamsOf(m).some((x) => prev.has(x)));
+    if (i < 0) i = 0;
+    const [m] = left.splice(i, 1);
+    out.push(m);
+    prev = new Set(teamsOf(m));
+  }
+  return out;
+}
+
+// Times and courts for every game.
+//   mode "perGroup": each group has its own court (Group A → Court 1, …),
+//                    so every group's game 1 is played together, then game 2…
+//   mode "shared":   all groups share `courts` courts
+// Knockout rounds follow in the next slots, one game per court.
+// Returns { [matchId]: { time, court, seq } }
+export function autoSchedule(t, { start = "10:00", minutes = 25, mode = "perGroup", courts = 2 } = {}) {
+  const groups = t.groups || [];
+  const out = {};
+  const slotTime = (i) => toHHMM(toMin(start) + i * minutes);
+  const byGroup = groups.map((g) =>
+    matchList(t).filter((m) => m.stage === "group" && m.group === g.id && !isByeMatch(m))
+      .sort((a, b) => a.round - b.round || a.id.localeCompare(b.id)));
+  let slots = 0;
+  let courtCount = Math.max(1, Math.floor(courts) || 1);
+
+  if (mode === "perGroup" && groups.length) {
+    courtCount = groups.length;
+    byGroup.forEach((games, gi) => {
+      restfulOrder(games).forEach((m, i) => { out[m.id] = { time: slotTime(i), court: `Court ${gi + 1}`, seq: i + 1 }; });
+      slots = Math.max(slots, games.length);
+    });
+  } else if (byGroup.length) {
+    // Take groups in turn so they progress evenly, then fill courts slot by slot
+    const queues = byGroup.map((g) => restfulOrder(g));
+    const left = [];
+    while (queues.some((q) => q.length)) queues.forEach((q) => { if (q.length) left.push(q.shift()); });
+    const seq = {};
+    let prev = new Set();
+    while (left.length) {
+      const busy = new Set();
+      const picked = [];
+      // Prefer teams that didn't just play, then anyone free in this slot
+      for (const rested of [true, false]) {
+        for (let i = 0; i < left.length && picked.length < courtCount; i++) {
+          const ts = teamsOf(left[i]);
+          if (ts.some((x) => busy.has(x)) || (rested && ts.some((x) => prev.has(x)))) continue;
+          picked.push(left[i]); ts.forEach((x) => busy.add(x)); left.splice(i, 1); i--;
+        }
+      }
+      picked.forEach((m, c) => {
+        seq[m.group] = (seq[m.group] || 0) + 1;
+        out[m.id] = { time: slotTime(slots), court: `Court ${c + 1}`, seq: seq[m.group] };
+      });
+      prev = busy;
+      slots++;
+    }
+  }
+
+  // Knockouts: each round starts in the next free slot, spread over the courts
+  const ko = matchList(t).filter((m) => m.stage === "ko" && !isByeMatch(m))
+    .sort((a, b) => a.round - b.round || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot);
+  const rounds = [...new Set(ko.map((m) => m.round))].sort((a, b) => a - b);
+  rounds.forEach((r) => {
+    const games = ko.filter((m) => m.round === r);
+    games.forEach((m, i) => {
+      out[m.id] = { time: slotTime(slots + Math.floor(i / courtCount)), court: `Court ${(i % courtCount) + 1}`, seq: 0 };
+    });
+    slots += Math.ceil(games.length / courtCount);
+  });
+  return out;
 }
 
 // Sets needed to win a best-of-N game (0 = free scoring)

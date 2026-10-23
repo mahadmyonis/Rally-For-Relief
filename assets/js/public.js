@@ -189,7 +189,7 @@ function teamTimeline(t, teamId, mine) {
             ${result}
           </div>
           <p class="tl-vs">vs <strong>${esc(v.opp)}</strong></p>
-          <p class="tl-meta">${esc(C.stageLabel(t, m))} <span class="dot-sep">·</span> Game #${nums[m.id]}</p>
+          <p class="tl-meta">${esc(m.stage === "group" ? (group ? group.name : "Group stage") : C.stageLabel(t, m))} <span class="dot-sep">·</span> Game #${nums[m.id]}</p>
           ${whenWhere(m) ? `<p class="tl-when">${whenWhere(m)}</p>` : ""}
         </div>
       </li>`;
@@ -220,7 +220,7 @@ function numbersFor(t) {
 function gameTile(t, m) {
   const win = C.winnerSide(m);
   const g = m.stage === "group" ? ((t.groups || []).find((x) => x.id === m.group) || {}).name : (m.third ? "3rd place" : "");
-  const meta = [m.time ? formatTime(m.time) : "", m.court].filter(Boolean).map(esc).join(" · ");
+  const meta = (m.stage === "group" ? [m.court] : [m.time ? formatTime(m.time) : "", m.court]).filter(Boolean).map(esc).join(" · ");
   const side = (s) => {
     const tid = C.resolveSource(t, m[s]);
     const v = m[s === "home" ? "hs" : "as"];
@@ -256,7 +256,7 @@ function matchesTab(t) {
         const done = c.matches.filter((m) => m.status === "final").length;
         const live = c.matches.some((m) => m.status === "live");
         return `<button type="button" class="rnav ${i === currentIdx ? "is-current" : ""}" data-col="${i}">
-          ${live ? `<span class="live-dot" aria-hidden="true"></span>` : done === c.matches.length ? "✓ " : ""}${esc(c.title)}</button>`;
+          ${live ? `<span class="live-dot" aria-hidden="true"></span>` : done === c.matches.length ? "✓ " : ""}${c.stage === "group" && c.time ? esc(formatTime(c.time)) : esc(c.title)}</button>`;
       }).join("")}
     </nav>
     <div class="rounds-scroll" data-current="${currentIdx}">
@@ -264,11 +264,12 @@ function matchesTab(t) {
         ${cols.map((c, i) => {
           const times = c.matches.map((m) => m.time).filter(Boolean).sort();
           const done = c.matches.filter((m) => m.status === "final").length;
+          const together = c.stage === "group" && c.matches.length > 1;
           return `
             <section class="rcol ${c.stage === "ko" ? "is-ko" : ""} ${i === currentIdx ? "is-current" : ""}" data-col="${i}">
               <header class="rcol-head">
-                <h3>${esc(c.title)}</h3>
-                <p>${times.length ? esc(formatTime(times[0])) + (times.length > 1 && times[times.length - 1] !== times[0] ? `–${esc(formatTime(times[times.length - 1]))}` : "") + " · " : ""}${done}/${c.matches.length} played</p>
+                <h3>${c.stage === "group" && c.time ? esc(formatTime(c.time)) : esc(c.title)}</h3>
+                <p>${c.stage === "group" ? `${esc(c.title)}${together ? " · played at the same time" : ""}` : times.length ? esc(formatTime(times[0])) : ""}${c.stage === "ko" && times.length ? " · " : c.stage === "group" ? " · " : ""}${done}/${c.matches.length} played</p>
               </header>
               <div class="rcol-games">${c.matches.map((m) => gameTile(t, m)).join("")}</div>
             </section>`;

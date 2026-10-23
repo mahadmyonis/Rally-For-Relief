@@ -45,9 +45,11 @@ Logo files live in `assets/`: `logo.png` (full lockup), `logo-mark.png` (R4R onl
 
 Scores count as goals, points or sets, whatever suits the sport. Under **Settings → Scoring**, choose "Points or goals" or "Sets: best of 1, 3 or 5". With sets, scorers get one-tap results (2–0, 2–1…) and impossible scores are refused. Win, draw and loss points can also be changed per tournament.
 
+**Schedule:** in **Format → Schedule**, set the first game's time and the minutes per game, then choose **One court per group** or **Share courts**, and tap **Set times & courts**. With one court per group, Group A plays on Court 1 and Group B on Court 2, one game at a time, so game 1 of every group starts together, then game 2, and so on. Nobody plays twice in a row where it can be avoided, and the knockouts follow straight after. Any single game's time or court can still be changed in its scoreboard.
+
 **Scoring on match day:** the **Scores** tab lists every game by round, with a progress bar, filters (To play / Live / Done) and a court filter. Tap a game to open its scoreboard: **Start game**, then use the big **+ / −** buttons or a quick result, then **Save final score**. After that, **Next game** jumps straight to the next game on the same court.
 
-**What visitors see:** the **Games** tab lays rounds out side by side like a bracket (Round 1 → … → Final), opening on the round being played. Each group's standings come with a results grid showing who beat whom. Following a team switches to a numbered timeline of their games ("Game 1 of 4", "Game 2 of 4"…) with time, court, opponent and the result from their side. A summary card shows their group position, record and next game, and a final step shows the knockouts they could reach. Every game also has a number (#1, #2…) in play order, the same across the page.
+**What visitors see:** the **Games** tab lays the day out side by side like a bracket: each group-stage column is a time slot showing the games played at the same time (one per court), then the knockout rounds, opening on what's being played now. Each group's standings come with a results grid showing who beat whom. Following a team switches to a numbered timeline of their games ("Game 1 of 4", "Game 2 of 4"…) with time, court, opponent and the result from their side. A summary card shows their group position, record and next game, and a final step shows the knockouts they could reach. Every game also has a number (#1, #2…) in play order, the same across the page.
 
 ### Sign-ups and donations
 

@@ -1271,3 +1271,7 @@ body.no-scroll { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .state-live .tl-marker::after { animation: none; }
 }
+
+.mlist-title small { font-family: var(--font-body); font-size: 13px; font-weight: 600; color: var(--grey); margin-left: 6px; }
+
+.field[hidden] { display: none; }
