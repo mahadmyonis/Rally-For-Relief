@@ -573,6 +573,8 @@ function teamInUse(t, teamId) {
   return C.matchList(t).some((m) => (m.home && m.home.id === teamId) || (m.away && m.away.id === teamId));
 }
 
+let openRoster = null;
+
 function renderTeams(t, panel) {
   const teams = C.sortedTeams(t);
   panel.innerHTML = `
@@ -598,14 +600,41 @@ function renderTeams(t, panel) {
           <span class="team-num">${i + 1}</span>
           <input class="team-name-input" value="${esc(tm.name)}" maxlength="40" aria-label="Team name">
           <div class="team-actions">
+            <button class="btn btn-ghost btn-sm players-btn ${openRoster === tm.id ? "is-open" : ""}" data-players aria-expanded="${openRoster === tm.id}">
+              Players <span class="count">${(tm.players || []).length}</span>
+            </button>
             <button class="icon-btn" data-move="-1" aria-label="Move up" ${i === 0 ? "disabled" : ""}>↑</button>
             <button class="icon-btn" data-move="1" aria-label="Move down" ${i === teams.length - 1 ? "disabled" : ""}>↓</button>
             <button class="icon-btn danger" data-remove aria-label="Remove ${esc(tm.name)}">✕</button>
           </div>
+          ${openRoster === tm.id ? `
+          <form class="roster-edit" data-roster="${esc(tm.id)}">
+            <label class="field"><span>Players — one per line</span>
+              <textarea name="players" rows="7" placeholder="Abdul Rehman&#10;Yousef Abdelaziz&#10;Zain Syed">${esc((tm.players || []).join("\n"))}</textarea>
+            </label>
+            <label class="field"><span>Captain</span>
+              <select name="captain">
+                <option value="">No captain</option>
+                ${(tm.players || []).map((n) => `<option ${n === tm.captain ? "selected" : ""}>${esc(n)}</option>`).join("")}
+              </select>
+            </label>
+            <p class="muted-sm">Tip: put <strong>(c)</strong> after a name to make them captain.</p>
+            <div class="btn-row"><button class="btn btn-accent btn-sm" type="submit">Save players</button></div>
+          </form>` : ""}
         </li>`).join("")}</ol>
         <p class="muted-sm">Order matters when you build a bracket without groups: the top team is seed 1.</p>`
       : `<p class="muted-sm">No teams yet.</p>`}
-    </div>`;
+    </div>
+
+    ${teams.length ? `
+    <div class="panel">
+      <h2 class="panel-title">Paste rosters for all teams</h2>
+      <p class="muted-sm">One team per line as <strong>TEAM: player, player, player</strong>, with <strong>(c)</strong> after the captain. Team names must match the list above. Pasting replaces those teams' players.</p>
+      <form id="roster-bulk">
+        <label class="field"><span>Rosters</span><textarea name="rosters" rows="8" placeholder="DUBS: Abdul Rehman (c), Yousef Abdelaziz, Zain Syed&#10;KHOBZ FC: Nouh (c), Ramiz Awada, Noah Tawfik"></textarea></label>
+        <div class="btn-row"><button class="btn btn-ghost btn-sm" type="submit">Save rosters</button></div>
+      </form>
+    </div>` : ""}`;
 
   const nextOrder = () => teams.reduce((mx, tm) => Math.max(mx, tm.order ?? 0), 0) + 1;
 
@@ -616,6 +645,21 @@ function renderTeams(t, panel) {
     save({ [`teams.${C.uid("t")}`]: { name, order: nextOrder() } }, `Added ${name}`);
     e.target.reset();
     e.target.querySelector("input").focus();
+  });
+
+  const rb = panel.querySelector("#roster-bulk");
+  if (rb) rb.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const { found, unknown } = C.parseRosters(new FormData(rb).get("rosters"), t.teams);
+    const ids = Object.keys(found);
+    if (!ids.length) return toast("No team names matched — check they're spelled like the team list.", "error");
+    const patch = {};
+    ids.forEach((tid) => {
+      patch[`teams.${tid}.players`] = found[tid].players;
+      patch[`teams.${tid}.captain`] = found[tid].captain;
+    });
+    save(patch, `Rosters saved for ${ids.length} team${ids.length === 1 ? "" : "s"}${unknown.length ? ` — not matched: ${unknown.join(", ")}` : ""}`);
+    if (!unknown.length) rb.reset();
   });
 
   panel.querySelector("#bulk-form").addEventListener("submit", (e) => {
@@ -645,6 +689,32 @@ function renderTeams(t, panel) {
       });
       save(patch, "");
     }));
+    li.querySelector("[data-players]").addEventListener("click", () => {
+      openRoster = openRoster === tid ? null : tid;
+      render();
+    });
+    const rf = li.querySelector("[data-roster]");
+    if (rf) {
+      // Keep the captain list in step with the names being typed
+      const ta = rf.querySelector("textarea");
+      const sel = rf.querySelector("select");
+      ta.addEventListener("input", () => {
+        const names = ta.value.split("\n").map((x) => x.replace(/\s*\(c\)\s*$/i, "").trim()).filter(Boolean);
+        const keep = sel.value;
+        sel.innerHTML = `<option value="">No captain</option>` + names.map((n) => `<option ${n === keep ? "selected" : ""}>${esc(n)}</option>`).join("");
+      });
+      rf.addEventListener("submit", (e) => {
+        e.preventDefault();
+        // Same rules as the paste box: the team name, then one player per line
+        const lines = ta.value.split("\n").map((x) => x.trim()).filter(Boolean).join("\n");
+        const { found } = C.parseRosters(`${t.teams[tid].name}\n${lines}`, { [tid]: t.teams[tid] });
+        const r = found[tid] || { players: [], captain: "" };
+        const captain = r.captain || (r.players.includes(sel.value) ? sel.value : "");
+        const players = captain ? [captain, ...r.players.filter((n) => n !== captain)] : r.players;
+        openRoster = null;
+        save({ [`teams.${tid}.players`]: players, [`teams.${tid}.captain`]: captain }, `Saved ${players.length} player${players.length === 1 ? "" : "s"}`);
+      });
+    }
     li.querySelector("[data-remove]").addEventListener("click", () => {
       if (teamInUse(t, tid)) {
         toast("This team already has games. Remove the groups/bracket in Format first.", "error");

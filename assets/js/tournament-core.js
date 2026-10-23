@@ -615,3 +615,55 @@ export function possibleKnockouts(t, teamId) {
   return scheduleList(t).filter((m) => m.stage === "ko" &&
     [m.home, m.away].some((s) => s && s.t === "group" && s.g === group.id));
 }
+
+// --- Rosters ----------------------------------------------------------------------
+// teams[id].players = ["Name", …] and teams[id].captain = "Name"
+
+const CAPTAIN_MARK = /\s*(\(c\)|\(captain\)|©|\*)\s*$|^\s*(\(c\)|©|\*)\s*/i;
+
+function cleanPlayer(raw) {
+  const captain = CAPTAIN_MARK.test(raw);
+  const name = raw.replace(CAPTAIN_MARK, "").replace(/\s+/g, " ").trim();
+  return { name, captain };
+}
+
+// Paste rosters for many teams at once. Either style works:
+//   DUBS: Abdul Rehman (c), Yousef Abdelaziz, Zain Syed
+// or a team name on its own line followed by one player per line, with a
+// blank line between teams. Mark the captain with (c), © or *.
+// Returns { found: { [teamId]: { players, captain } }, unknown: ["Name", …] }
+export function parseRosters(text, teams) {
+  const byName = {};
+  Object.entries(teams || {}).forEach(([id, tm]) => { byName[tm.name.trim().toLowerCase()] = id; });
+  const found = {};
+  const unknown = [];
+  let current = null;
+  const add = (id, raw) => {
+    const p = cleanPlayer(raw);
+    if (!p.name) return;
+    const r = found[id] || (found[id] = { players: [], captain: "" });
+    if (!r.players.includes(p.name)) r.players.push(p.name);
+    if (p.captain) r.captain = p.name;
+  };
+  String(text || "").split(/\r?\n/).forEach((line) => {
+    const l = line.trim();
+    if (!l) { current = null; return; }
+    const colon = l.indexOf(":");
+    if (colon > 0) {
+      const team = l.slice(0, colon).trim().toLowerCase();
+      if (byName[team]) {
+        current = byName[team];
+        l.slice(colon + 1).split(",").forEach((n) => add(current, n));
+        return;
+      }
+    }
+    if (byName[l.toLowerCase()]) { current = byName[l.toLowerCase()]; found[current] = found[current] || { players: [], captain: "" }; return; }
+    if (current) { l.split(",").forEach((n) => add(current, n)); return; }
+    unknown.push(colon > 0 ? l.slice(0, colon).trim() : l);
+  });
+  // Captain first; if none was marked, keep the list as given
+  Object.values(found).forEach((r) => {
+    if (r.captain) r.players = [r.captain, ...r.players.filter((n) => n !== r.captain)];
+  });
+  return { found, unknown: [...new Set(unknown)] };
+}

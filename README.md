@@ -51,6 +51,11 @@ Scores count as goals, points or sets, whatever suits the sport. Under **Setting
 
 **What visitors see:** the **Games** tab lays the day out side by side like a bracket: each group-stage column is a round of the round robin (Round 1, Round 2…), split into slots. A slot holds the games played at the same time, e.g. Group A on Court 1 and Group B on Court 2, with its start time once games are scheduled. Games are labelled "Group A · Game 1", "Semi-final 1" and so on, then the knockout rounds, opening on what's being played now. Each group's standings come with a results grid showing who beat whom. Following a team switches to a numbered timeline of their games ("Game 1 of 4", "Game 2 of 4"…) with time, court, opponent and the result from their side. A summary card shows their group position, record and next game, and a final step shows the knockouts they could reach.
 
+### Rosters
+
+- **Adding players:** in **Teams**, tap **Players** next to a team, type one player per line and pick the captain (or put **(c)** after their name). For all teams at once, use **Paste rosters for all teams** with one line per team: `DUBS: Abdul Rehman (c), Yousef Abdelaziz, Zain Syed`.
+- **What visitors see:** a **Teams** tab with every team's roster card, grouped by group, captain first with a gold **C**. Tapping **Follow** on a card, or picking a team in "All teams", shows that team with a **Games | Players** switch.
+
 ### Sign-ups and donations
 
 - **Team sign-ups:** in a tournament's **Settings**, paste your sign-up form link (e.g. a Google Form) and tick **Sign-ups are open**. A "Sign up your team" button then appears on the home page ticket and on the tournament page. Untick it to close sign-ups. Sign-ups also close automatically when the tournament is set to Finished.

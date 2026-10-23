@@ -462,3 +462,22 @@ test("game numbers follow play order; possible knockouts only while the group is
   C.matchList(t).filter((m) => m.group === t.groups[0].id).forEach((m) => play(t, m.id, 1, 0));
   assert.equal(C.possibleKnockouts(t, team).length, 0);
 });
+
+test("rosters: paste by 'TEAM: names' or blocks, captain marked and listed first", () => {
+  const teams = { a: { name: "DUBS" }, b: { name: "Khobz FC" }, c: { name: "GHOUM VB" } };
+  const text = [
+    "DUBS: Yousef Abdelaziz, Abdul Rehman (c), Zain Syed",
+    "khobz fc: Nouh ©,  Ramiz  Awada",
+    "",
+    "GHOUM VB",
+    "Sajid *",
+    "Sindeed, Saadman",
+    "",
+    "NOT A TEAM: Someone"
+  ].join("\n");
+  const { found, unknown } = C.parseRosters(text, teams);
+  assert.deepEqual(found.a, { players: ["Abdul Rehman", "Yousef Abdelaziz", "Zain Syed"], captain: "Abdul Rehman" });
+  assert.deepEqual(found.b, { players: ["Nouh", "Ramiz Awada"], captain: "Nouh" });
+  assert.deepEqual(found.c, { players: ["Sajid", "Sindeed", "Saadman"], captain: "Sajid" });
+  assert.deepEqual(unknown, ["NOT A TEAM"]);
+});

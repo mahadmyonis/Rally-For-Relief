@@ -12,6 +12,8 @@ const preview = query("preview") === "1";
 let current = null;
 let tab = (location.hash || "").slice(1);
 let teamFilter = "";
+// When following a team: their "games" timeline or their "players"
+let teamView = "games";
 // Horizontal position in the round columns; null until the first render
 let roundsLeft = null;
 
@@ -126,9 +128,6 @@ function teamTimeline(t, teamId, mine) {
   const name = C.teamName(t, teamId);
   const group = (t.groups || []).find((g) => g.teamIds.includes(teamId));
   const maybe = C.possibleKnockouts(t, teamId);
-  if (!list.length && !maybe.length) {
-    return `<div class="empty"><h2>No games for ${esc(name)} yet</h2><p>Check back closer to the day.</p></div>`;
-  }
 
   // Result from this team's side
   const view1 = (m) => {
@@ -158,6 +157,10 @@ function teamTimeline(t, teamId, mine) {
         ${pos ? `<span>${esc(pos)}</span>` : ""}
         <span>${list.length} game${list.length === 1 ? "" : "s"}${maybe.length ? " so far" : ""}</span>
         ${played.length ? `<span>Won ${won}${drawn ? ` · Drew ${drawn}` : ""} · Lost ${lost}</span>` : ""}
+      </div>
+      <div class="seg-toggle" role="tablist" aria-label="Show">
+        <button type="button" role="tab" data-tview="games" aria-selected="${teamView === "games"}" class="${teamView === "games" ? "is-active" : ""}">Games</button>
+        <button type="button" role="tab" data-tview="players" aria-selected="${teamView === "players"}" class="${teamView === "players" ? "is-active" : ""}">Players${(t.teams[teamId].players || []).length ? ` <span>${t.teams[teamId].players.length}</span>` : ""}</button>
       </div>
       ${next ? `
         <div class="team-sum-next ${next.status === "live" ? "is-live" : ""}">
@@ -206,6 +209,8 @@ function teamTimeline(t, teamId, mine) {
         </div>
       </li>` : "";
 
+  if (teamView === "players") return summary + rosterCard(t, teamId, { big: true });
+  if (!list.length && !maybeItem) return summary + `<div class="empty"><h2>No games for ${esc(name)} yet</h2><p>Check back closer to the day.</p></div>`;
   return `${summary}<ol class="timeline">${items}${maybeItem}</ol>`;
 }
 
@@ -224,6 +229,41 @@ function gameLabel(t, m) {
   const count = C.matchList(t).filter((x) => x.stage === "ko" && !x.third && x.round === m.round && !C.isByeMatch(x)).length;
   const single = name.replace(/s$/, "").replace("Semi-finals", "Semi-final").replace("Quarter-finals", "Quarter-final");
   return count > 1 ? `${single} ${m.slot + 1}` : single;
+}
+
+// A team's roster: name, group, captain first with a C badge, then the players
+function rosterCard(t, teamId, { big = false } = {}) {
+  const tm = t.teams[teamId];
+  if (!tm) return "";
+  const group = (t.groups || []).find((g) => g.teamIds.includes(teamId));
+  const players = tm.players || [];
+  return `
+    <article class="roster ${big ? "is-big" : ""}">
+      <header class="roster-head">
+        <h3>${esc(tm.name)}</h3>
+        ${group ? `<span class="roster-group">${esc(group.name)}</span>` : ""}
+      </header>
+      ${players.length ? `
+        <ul class="roster-list">
+          ${players.map((n) => `<li class="${n === tm.captain ? "is-captain" : ""}"><span>${esc(n)}</span>${n === tm.captain ? `<span class="cap-badge" title="Team captain" aria-label="Captain">C</span>` : ""}</li>`).join("")}
+        </ul>`
+      : `<p class="roster-empty">Players coming soon.</p>`}
+      ${big ? "" : `<footer class="roster-foot"><button type="button" class="link-btn" data-follow="${esc(teamId)}">Follow ${esc(tm.name)} →</button></footer>`}
+    </article>`;
+}
+
+function teamsTab(t) {
+  const groups = (t.groups || []).filter((g) => g.teamIds.length);
+  const sections = groups.length
+    ? groups.map((g) => ({ title: `${g.name}`, ids: g.teamIds }))
+    : [{ title: "", ids: C.sortedTeams(t).map((x) => x.id) }];
+  const anyCaptain = Object.values(t.teams || {}).some((x) => x.captain);
+  return sections.map((sec) => `
+    <section class="roster-section">
+      ${sec.title ? `<h3 class="round-title">${esc(sec.title)} <span class="muted">rosters</span></h3>` : ""}
+      <div class="roster-grid">${sec.ids.map((id) => rosterCard(t, id)).join("")}</div>
+    </section>`).join("") +
+    (anyCaptain ? `<p class="legend"><span class="cap-badge" aria-hidden="true">C</span> Team captain</p>` : "");
 }
 
 function gameTile(t, m) {
@@ -399,6 +439,7 @@ function renderTournament(t) {
   const tabs = [["matches", "Games"]];
   if (hasGroups) tabs.push(["standings", "Standings"]);
   if (hasKo) tabs.push(["bracket", "Bracket"]);
+  if (Object.keys(t.teams || {}).length) tabs.push(["teams", "Teams"]);
   if (!tabs.some(([k]) => k === tab)) tab = "matches";
 
   const live = C.scheduleList(t).filter((m) => m.status === "live");
@@ -410,6 +451,7 @@ function renderTournament(t) {
   if (tab === "matches") body = matchesTab(t);
   if (tab === "standings") body = standingsTab(t);
   if (tab === "bracket") body = bracketTab(t);
+  if (tab === "teams") body = teamsTab(t);
 
   const prevScroll = view.querySelector(".rounds-scroll");
   roundsLeft = prevScroll ? prevScroll.scrollLeft : roundsLeft;
@@ -473,9 +515,25 @@ function renderTournament(t) {
     history.replaceState(null, "", `#${tab}`);
     renderTournament(current);
   }));
+  view.querySelectorAll("[data-tview]").forEach((b) => b.addEventListener("click", () => {
+    teamView = b.dataset.tview;
+    renderTournament(current);
+  }));
+  view.querySelectorAll("[data-follow]").forEach((b) => b.addEventListener("click", () => {
+    teamFilter = b.dataset.follow;
+    teamView = "players";
+    tab = "matches";
+    history.replaceState(null, "", "#matches");
+    try { localStorage.setItem(`r4r-follow-${id}`, teamFilter); } catch { /* ignore */ }
+    renderTournament(current);
+    const top = view.querySelector(".team-sum");
+    if (top) scrollTo({ top: top.getBoundingClientRect().top + scrollY - 96, behavior: "smooth" });
+  }));
+
   const sel = view.querySelector("#team-filter");
   if (sel) sel.addEventListener("change", () => {
     teamFilter = sel.value;
+    teamView = "games";
     try { localStorage.setItem(`r4r-follow-${id}`, teamFilter); } catch { /* ignore */ }
     renderTournament(current);
   });
