@@ -372,8 +372,12 @@ function renderScores(t, panel) {
     </div>
     ${cols.length ? cols.map((c) => `
       <section class="mlist-round">
-        <h3 class="mlist-title">${c.stage === "group" && c.time ? `${esc(formatTime(c.time))} <small>${esc(c.title)}</small>` : esc(c.title)} <span>${c.matches.filter((m) => m.status === "final").length}/${c.matches.length}</span></h3>
-        <div class="mlist">${c.shown.map(row).join("")}</div>
+        <h3 class="mlist-title">${esc(c.title)} <span>${c.matches.filter((m) => m.status === "final").length}/${c.matches.length}</span></h3>
+        ${c.stage === "group"
+          ? c.slots.map((sl) => ({ ...sl, shown: sl.matches.filter((m) => c.shown.some((x) => x.id === m.id)) })).filter((sl) => sl.shown.length).map((sl) => `
+            <p class="mslot-head">Slot ${sl.n}${sl.time ? ` · ${esc(formatTime(sl.time))}` : ""}</p>
+            <div class="mlist">${sl.shown.map(row).join("")}</div>`).join("")
+          : `<div class="mlist">${c.shown.map(row).join("")}</div>`}
       </section>`).join("")
     : `<p class="muted-sm">Nothing here — ${scoreFilter === "live" ? "no games are live right now" : scoreFilter === "done" ? "no games are finished yet" : "every game is finished 🎉"}.</p>`}
     <p class="muted-sm">Tap a game to score it. Add times and courts inside each game.</p>

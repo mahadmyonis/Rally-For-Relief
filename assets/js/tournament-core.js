@@ -405,33 +405,57 @@ export function dependentMatches(t, matchId) {
 
 // --- Rounds, results and match-day helpers ----------------------------------------
 
-// Columns for a bracket-style view. The group stage is split into time
-// slots — the games played at the same time, one per court — then each
-// knockout round follows (the third-place game sits with the final).
+// Columns for a bracket-style view. Each group-stage column is a round of
+// the round robin (Round 1, Round 2…), split into slots: the games played at
+// the same time, one per group/court. Knockout rounds follow (the
+// third-place game sits with the final).
+//   column: { key, title, stage, time, matches, slots: [{ n, time, matches }] }
 export function roundColumns(t) {
   const list = scheduleList(t);
   const group = list.filter((m) => m.stage === "group");
   const ko = list.filter((m) => m.stage === "ko");
   const order = groupOrder(t);
   const timed = group.length > 0 && group.every((m) => m.time);
+  const courtSort = (a, b) => (a.court || "").localeCompare(b.court || "", undefined, { numeric: true }) ||
+    (a.groupIdx ?? 0) - (b.groupIdx ?? 0) || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot;
+  const groupIndex = {};
+  (t.groups || []).forEach((g, i) => { groupIndex[g.id] = i; });
   const cols = [];
-  const byKey = new Map();
-  const add = (key, col, m) => {
-    if (!byKey.has(key)) { byKey.set(key, { key, matches: [], ...col }); cols.push(byKey.get(key)); }
-    byKey.get(key).matches.push(m);
-  };
-  group.forEach((m) => {
-    const k = timed ? m.time : order[m.id]?.n ?? m.round;
-    add(`s${k}`, { title: "", time: timed ? m.time : "", stage: "group" }, m);
+
+  const rounds = [...new Set(group.map((m) => m.round))].sort((a, b) => a - b);
+  rounds.forEach((r) => {
+    const games = group.filter((m) => m.round === r).map((m) => ({ ...m, groupIdx: groupIndex[m.group] ?? 0 }));
+    // Slot = time when scheduled, otherwise each group's 1st, 2nd… game of the round
+    const slotKey = {};
+    if (timed) {
+      games.forEach((m) => { slotKey[m.id] = m.time; });
+    } else {
+      const byGroup = {};
+      games.slice().sort((a, b) => (order[a.id]?.n ?? 0) - (order[b.id]?.n ?? 0))
+        .forEach((m) => { byGroup[m.group] = (byGroup[m.group] || 0) + 1; slotKey[m.id] = String(byGroup[m.group]).padStart(3, "0"); });
+    }
+    const keys = [...new Set(games.map((m) => slotKey[m.id]))].sort();
+    const slots = keys.map((k, i) => ({
+      n: i + 1,
+      time: timed ? k : "",
+      matches: games.filter((m) => slotKey[m.id] === k).sort(courtSort)
+    }));
+    cols.push({
+      key: `r${r}`, title: `Round ${r}`, stage: "group",
+      time: slots[0] && slots[0].time, slots,
+      matches: slots.flatMap((sl) => sl.matches)
+    });
   });
-  // Round N = each group's game N, played at the same time on their own courts
-  cols.forEach((c, i) => { c.title = `Round ${i + 1}`; c.slot = i + 1; });
-  ko.sort((a, b) => a.round - b.round || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot)
-    .forEach((m) => add(`k${m.round}`, { title: roundName(m.rounds || m.round, m.round), time: "", stage: "ko" }, m));
-  const courtSort = (a, b) => (a.court || "").localeCompare(b.court || "", undefined, { numeric: true }) || (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot;
-  cols.forEach((c) => {
-    c.matches.sort((a, b) => (a.time || "").localeCompare(b.time || "") || courtSort(a, b));
-    if (c.stage === "ko") c.time = c.matches.map((m) => m.time).filter(Boolean).sort()[0] || "";
+
+  const koRounds = [...new Set(ko.map((m) => m.round))].sort((a, b) => a - b);
+  koRounds.forEach((r) => {
+    const games = ko.filter((m) => m.round === r).sort((a, b) => (a.third ? 1 : 0) - (b.third ? 1 : 0) || a.slot - b.slot);
+    cols.push({
+      key: `k${r}`, title: roundName(games[0].rounds || r, r), stage: "ko",
+      time: games.map((m) => m.time).filter(Boolean).sort()[0] || "",
+      slots: [{ n: 1, time: "", matches: games }],
+      matches: games
+    });
   });
   return cols;
 }
@@ -442,19 +466,35 @@ const toMin = (hhmm) => { const [h, m] = String(hhmm || "10:00").split(":").map(
 const toHHMM = (mins) => { const d = ((mins % 1440) + 1440) % 1440; return `${String(Math.floor(d / 60)).padStart(2, "0")}:${String(d % 60).padStart(2, "0")}`; };
 const teamsOf = (m) => [m.home && m.home.id, m.away && m.away.id].filter(Boolean);
 
-// Order a group's games so nobody plays twice in a row when it can be avoided
+// Order a group's games round by round (all of round 1, then round 2…), and
+// within each round pick the order that gives the fewest back-to-back games
+// for any team — looking across round boundaries too.
+function permutations(list) {
+  if (list.length <= 1) return [list];
+  return list.flatMap((x, i) => permutations([...list.slice(0, i), ...list.slice(i + 1)]).map((p) => [x, ...p]));
+}
+const clash = (a, b) => Boolean(a && b) && teamsOf(a).some((x) => teamsOf(b).includes(x));
+
 function restfulOrder(games) {
-  const left = games.slice();
-  const out = [];
-  let prev = new Set();
-  while (left.length) {
-    let i = left.findIndex((m) => !teamsOf(m).some((x) => prev.has(x)));
-    if (i < 0) i = 0;
-    const [m] = left.splice(i, 1);
-    out.push(m);
-    prev = new Set(teamsOf(m));
-  }
-  return out;
+  const rounds = [...new Set(games.map((m) => m.round))].sort((a, b) => a - b)
+    .map((r) => games.filter((m) => m.round === r).sort((a, b) => a.id.localeCompare(b.id)));
+  // Best order for each round given the previous round's last game (small rounds: try every order)
+  let best = new Map([[null, { cost: 0, seq: [] }]]);
+  rounds.forEach((round) => {
+    const orders = round.length <= 6 ? permutations(round) : [round];
+    const next = new Map();
+    best.forEach(({ cost, seq }, lastId) => {
+      const last = lastId ? games.find((m) => m.id === lastId) : null;
+      orders.forEach((o) => {
+        let c = cost + (clash(last, o[0]) ? 1 : 0);
+        for (let i = 1; i < o.length; i++) if (clash(o[i - 1], o[i])) c++;
+        const end = o[o.length - 1].id;
+        if (!next.has(end) || next.get(end).cost > c) next.set(end, { cost: c, seq: seq.concat(o) });
+      });
+    });
+    best = next;
+  });
+  return [...best.values()].sort((a, b) => a.cost - b.cost)[0]?.seq || [];
 }
 
 // Times and courts for every game.

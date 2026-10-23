@@ -322,16 +322,19 @@ test("dependent games: a group game feeds the whole bracket; a semi feeds the fi
   assert.deepEqual(C.dependentMatches(t, ko.rounds[1].matches[0].id), []);
 });
 
-test("columns: group stage in slots (each group's game N together), then knockout rounds", () => {
-  const t = makeTournament(["A", "B", "C", "D", "E", "F"]);
+test("columns: one per round, each split into slots of games played together", () => {
+  const t = makeTournament(Array.from({ length: 10 }, (_, i) => `T${i}`));
   addGroups(t, 2, 2);
   Object.assign(t.matches, C.buildKnockout(C.seedsFromGroups(t.groups, 2), { thirdPlace: true }));
   const cols = C.roundColumns(t);
-  // 3 teams per group → 3 games each → 3 slots of 2 games (one per group), then semis and final
-  assert.deepEqual(cols.map((c) => c.title), ["Round 1", "Round 2", "Round 3", "Semi-finals", "Final"]);
-  cols.slice(0, 3).forEach((c) => assert.deepEqual(c.matches.map((m) => m.group).sort(), ["g0", "g1"]));
+  // 5 teams per group → 5 rounds, each with 2 slots of (Group A game + Group B game)
+  assert.deepEqual(cols.map((c) => c.title), ["Round 1", "Round 2", "Round 3", "Round 4", "Round 5", "Semi-finals", "Final"]);
+  cols.slice(0, 5).forEach((c) => {
+    assert.equal(c.slots.length, 2);
+    c.slots.forEach((sl) => assert.deepEqual(sl.matches.map((m) => m.group).sort(), ["g0", "g1"]));
+  });
   assert.equal(cols.reduce((n, c) => n + c.matches.length, 0), C.scheduleList(t).length);
-  assert.ok(cols[4].matches[1].third, "third place after the final");
+  assert.ok(cols[6].matches[1].third, "third place after the final");
 
   const k = makeTournament(["A", "B", "C"]);
   Object.assign(k.matches, C.buildKnockout(Object.keys(k.teams).map((id) => ({ t: "team", id }))));
@@ -357,11 +360,17 @@ test("schedule, one court per group: game N of every group at the same time, own
   assert.equal(group.find((m) => order[m.id].n === 2).time, "10:25");
   // Nobody on two courts at once, and the columns line up with the slots
   const cols = C.roundColumns(t);
-  cols.forEach((c) => {
-    const teams = c.matches.flatMap((m) => [m.home.id, m.away.id]).filter(Boolean);
+  cols.forEach((c) => c.slots.forEach((sl) => {
+    const teams = sl.matches.flatMap((m) => [m.home.id, m.away.id]).filter(Boolean);
     assert.equal(new Set(teams).size, teams.length);
+  }));
+  const groupCols = cols.filter((c) => c.stage === "group");
+  assert.equal(groupCols.length, 5, "5 rounds");
+  groupCols.forEach((c) => {
+    assert.equal(c.slots.length, 2, "2 slots per round");
+    c.slots.forEach((sl) => assert.equal(new Set(sl.matches.map((m) => m.time)).size, 1, "a slot is one time"));
+    assert.ok(c.matches.every((m) => m.round === c.matches[0].round), "a column is one round");
   });
-  assert.equal(cols.filter((c) => c.stage === "group").length, 10);
   // Knockouts after the last group slot (10 slots → semis at 14:10, final + 3rd at 14:35)
   const ko = C.knockoutRounds(t);
   ko.rounds[0].matches.forEach((m) => assert.equal(m.time, "14:10"));
