@@ -1424,3 +1424,7 @@ body.no-scroll { overflow: hidden; }
   .team-list li .team-name-input { flex: 1 1 calc(100% - 40px); }
   .team-list li .team-actions { flex: 1 1 100%; justify-content: flex-end; padding-left: 34px; }
 }
+/* Games played together are grouped; the gap between groups marks the next slot */
+.rslot + .rslot { padding-top: 14px; }
+.mslot-gap { height: 10px; }
+.mlist-title + .mslot-gap { display: none; }

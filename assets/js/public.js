@@ -319,7 +319,7 @@ function matchesTab(t) {
               </header>
               ${c.stage === "group" ? `<div class="rcol-slots">${c.slots.map((sl) => `
                 <div class="rslot">
-                  <p class="rslot-head"><b>Slot ${sl.n}</b>${sl.time ? ` · ${esc(formatTime(sl.time))}` : ""}</p>
+                  ${sl.time ? `<p class="rslot-head"><b>${esc(formatTime(sl.time))}</b></p>` : ""}
                   <div class="rcol-games">${sl.matches.map((m) => gameTile(t, m)).join("")}</div>
                 </div>`).join("")}</div>`
               : `<div class="rcol-games">${c.matches.map((m) => gameTile(t, m)).join("")}</div>`}

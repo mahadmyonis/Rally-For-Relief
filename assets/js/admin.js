@@ -375,7 +375,7 @@ function renderScores(t, panel) {
         <h3 class="mlist-title">${esc(c.title)} <span>${c.matches.filter((m) => m.status === "final").length}/${c.matches.length}</span></h3>
         ${c.stage === "group"
           ? c.slots.map((sl) => ({ ...sl, shown: sl.matches.filter((m) => c.shown.some((x) => x.id === m.id)) })).filter((sl) => sl.shown.length).map((sl) => `
-            <p class="mslot-head">Slot ${sl.n}${sl.time ? ` · ${esc(formatTime(sl.time))}` : ""}</p>
+            ${sl.time ? `<p class="mslot-head">${esc(formatTime(sl.time))}</p>` : `<div class="mslot-gap" aria-hidden="true"></div>`}
             <div class="mlist">${sl.shown.map(row).join("")}</div>`).join("")
           : `<div class="mlist">${c.shown.map(row).join("")}</div>`}
       </section>`).join("")
